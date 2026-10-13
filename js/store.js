@@ -105,8 +105,10 @@ export function sanitizeState(raw) {
   return { tasks, settings, planConfig, backlog, planMeta, simLast, version: Number(raw.version) >= SCHEMA_VERSION ? SCHEMA_VERSION : 1 };
 }
 
+let idCounter = 0;
 export function newId(prefix = 'CUSTOM') {
-  return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
+  idCounter = (idCounter + 1) % 1679616; // the counter makes ids unique even within one millisecond
+  return `${prefix}-${Date.now().toString(36)}-${idCounter.toString(36)}${Math.random().toString(36).slice(2, 5)}`;
 }
 
 // ---- live state + persistence (browser only) -------------------------------------------------
