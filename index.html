@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<meta name="description" content="Offline-first MBBS study planner with an automatic scheduler, weekly calendar, task library and what-if simulator.">
+<title>MBBS Study Command Center</title>
+<meta name="theme-color" content="#1b2a33">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<script>try{var t=localStorage.getItem("mbbsTheme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t;}catch(e){}</script>
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to main content</a>
+
+<header class="topbar">
+  <div class="brand">
+    <h1>MBBS Study Command Center</h1>
+    <p>Plan, track and reschedule your study without the stress.</p>
+  </div>
+  <div class="top-actions" role="group" aria-label="Backup and help">
+    <button type="button" id="exportBtn">Export backup</button>
+    <button type="button" id="importBtn">Import backup</button>
+    <button type="button" id="themeBtn" title="Switch between automatic, light and dark theme">Theme: Auto</button>
+    <button type="button" id="helpBtn" aria-haspopup="dialog" title="Keyboard shortcuts (?)">Shortcuts <kbd>?</kbd></button>
+    <input id="importFile" type="file" accept="application/json,.json" hidden aria-label="Backup file to import">
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="sidebar" aria-label="Main">
+    <ul class="nav" id="nav">
+      <li><a href="#dashboard" data-page="dashboard"><span>Dashboard</span><small>Overview and risk</small></a></li>
+      <li><a href="#day" data-page="day"><span>Daily view</span><small>Light + focused work</small></a></li>
+      <li><a href="#calendar" data-page="calendar"><span>Weekly calendar</span><small>The week at a glance</small></a></li>
+      <li><a href="#tasks" data-page="tasks"><span>Task library</span><small>All indexed lectures</small></a></li>
+      <li><a href="#simulator" data-page="simulator"><span>What-if simulator</span><small>Buffer and backlog</small></a></li>
+      <li><a href="#data" data-page="data"><span>Data audit</span><small>Verified vs estimated</small></a></li>
+      <li><a href="#settings" data-page="settings"><span>Settings</span><small>Study-time assumptions</small></a></li>
+    </ul>
+  </nav>
+
+  <main id="main" tabindex="-1">
+    <noscript><p class="notice">This app needs JavaScript. Please enable it and reload.</p></noscript>
+
+    <!-- DASHBOARD -->
+    <section class="page" id="page-dashboard" aria-labelledby="h-dashboard" hidden>
+      <div class="heading">
+        <div><h2 id="h-dashboard" tabindex="-1">Dashboard</h2><p class="sub">Your plan should adapt to reality, not punish you for it.</p></div>
+        <div class="field inline"><label for="focusDate">View date</label><input type="date" id="focusDate"></div>
+      </div>
+      <p class="notice"><strong>Planning status:</strong> the scheduler uses every title-level entry in the library, keeps the verified FMT/ENT totals visible without inventing lecture titles, and flags estimated durations. The trip is protected and the finish target and hard backstop are shown on the calendar page.</p>
+      <div class="cards" role="list" aria-label="Key numbers">
+        <div class="card" role="listitem"><div class="metric-label">Indexed lectures</div><div class="metric" id="mTasks">—</div><div class="metric-note" id="mSubjects"></div></div>
+        <div class="card" role="listitem"><div class="metric-label">Completed</div><div class="metric" id="mDone">—</div><div class="progress" role="progressbar" aria-label="Completed lectures" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="pDoneBar"><span id="pDone"></span></div></div>
+        <div class="card" role="listitem"><div class="metric-label">Video runtime</div><div class="metric" id="mRuntime">—</div><div class="metric-note">Missing timings count as 20 min</div></div>
+        <div class="card" role="listitem"><div class="metric-label">Study time needed</div><div class="metric" id="mPlanned">—</div><div class="metric-note">Runtime + annotation + recall</div></div>
+      </div>
+      <div class="grid2">
+        <section class="panel" aria-labelledby="h-today">
+          <h3 id="h-today">Light and focused work for the selected date</h3>
+          <p class="sub small" id="todaySummary"></p>
+          <div class="today-blocks" id="todayTasks"></div>
+          <div class="row actions">
+            <a class="btn primary" id="openDayLink" href="#day">Open full daily view</a>
+            <a class="btn" href="#calendar">Open weekly calendar</a>
+            <a class="btn" href="#tasks">Browse task library</a>
+          </div>
+        </section>
+        <section class="panel" aria-labelledby="h-buffer">
+          <h3 id="h-buffer">Buffer reserve this week</h3>
+          <div class="row between"><span class="muted">Free time after planned work</span><strong id="bufferMetric">—</strong></div>
+          <div class="progress meter" role="progressbar" aria-label="Free time compared with the weekly buffer target" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="bufferBarWrap"><span id="bufferBar"></span></div>
+          <p class="small muted" id="bufferCopy"></p>
+          <div class="kpi-row">
+            <div class="kpi"><span class="small muted">Backlog</span><strong id="backlogCount">0</strong></div>
+            <div class="kpi"><span class="small muted">Backlog time</span><strong id="backlogTime">0 h</strong></div>
+          </div>
+          <div class="row actions"><a class="btn" href="#simulator">Simulate a disruption</a></div>
+        </section>
+      </div>
+      <div class="grid2 even" id="insights">
+        <section class="panel" aria-labelledby="h-subjects">
+          <h3 id="h-subjects">Progress by subject</h3>
+          <div class="subject-bars" id="subjectBars"></div>
+        </section>
+        <section class="panel" aria-labelledby="h-momentum">
+          <h3 id="h-momentum">Momentum and countdown</h3>
+          <div class="kpi-row tight">
+            <div class="kpi"><span class="small muted">Study streak</span><strong id="streakVal">0 days</strong></div>
+            <div class="kpi"><span class="small muted">To target finish</span><strong id="countFinish">—</strong></div>
+            <div class="kpi"><span class="small muted">To hard backstop</span><strong id="countBackstop">—</strong></div>
+          </div>
+          <p class="small muted" id="paceCopy"></p>
+          <div class="spark" id="spark" role="img" aria-label="Lectures completed in the last 7 days"></div>
+          <p class="small muted" id="sparkCopy"></p>
+        </section>
+      </div>
+      <section class="panel" aria-labelledby="h-timer" id="timerPanel">
+        <h3 id="h-timer">Focus timer</h3>
+        <div class="row timer-row">
+          <output class="timer-face" id="timerFace" aria-label="Time remaining">25:00</output>
+          <label class="sr-only" for="timerLen">Session length</label>
+          <select id="timerLen"><option value="25">25 min</option><option value="45">45 min</option><option value="50">50 min</option><option value="90">90 min</option></select>
+          <button type="button" class="primary" id="timerStart">Start</button>
+          <button type="button" id="timerReset">Reset</button>
+          <span class="muted small">Sessions finished today: <strong id="timerCount">0</strong></span>
+        </div>
+      </section>
+      <p class="footer">Progress is saved in this browser on this device. Export a backup regularly; there is no cloud sync.</p>
+    </section>
+
+    <!-- DAILY VIEW -->
+    <section class="page" id="page-day" aria-labelledby="h-day" hidden>
+      <div class="heading">
+        <div><h2 id="h-day" tabindex="-1">Daily view</h2><p class="sub" id="dayLabel"></p></div>
+        <div class="row day-nav" role="group" aria-label="Choose day">
+          <button type="button" id="prevDay" aria-label="Previous day">← Previous</button>
+          <button type="button" id="todayDay">Today</button>
+          <label class="sr-only" for="dayDate">Pick a date</label>
+          <input type="date" id="dayDate">
+          <button type="button" id="nextDay" aria-label="Next day">Next →</button>
+          <button type="button" id="daySettingsBtn" aria-haspopup="dialog">Day settings…</button>
+        </div>
+      </div>
+      <p class="notice" id="dayNotice" hidden></p>
+      <div class="kpi-row" id="daySummary" aria-live="polite"></div>
+      <div class="blocks-grid" id="dayBlocks"></div>
+    </section>
+
+    <!-- CALENDAR -->
+    <section class="page" id="page-calendar" aria-labelledby="h-calendar" hidden>
+      <div class="heading">
+        <div><h2 id="h-calendar" tabindex="-1">Weekly calendar</h2><p class="sub">See both work blocks for every day. Choose a day heading to open its full daily view.</p></div>
+        <div class="row week-nav" role="group" aria-label="Choose week">
+          <button type="button" id="prevWeek" aria-label="Previous week">← Previous</button>
+          <button type="button" id="todayWeek">Today</button>
+          <label class="sr-only" for="weekDate">Pick any date in the week</label>
+          <input type="date" id="weekDate">
+          <button type="button" id="nextWeek" aria-label="Next week">Next →</button>
+        </div>
+      </div>
+      <p class="week-label" id="weekLabel" aria-live="polite"></p>
+      <div class="week-grid" id="weekGrid"></div>
+
+      <details class="panel scheduler" id="schedulerPanel" open>
+        <summary><strong>Automatic master scheduler</strong><span class="muted small"> — build or rebuild the dated plan</span></summary>
+        <p class="small muted">Places every lecture into the Focused block (home / evening) and builds light-work prep (recall, MCQs, previews, indexing) for the College-gap block. It protects the trip, handles DAMS weekends, adds posting catch-up and weekly review blocks, and lists anything that does not fit instead of hiding it. Lectures you moved by hand stay where you put them.</p>
+        <form id="planForm" novalidate>
+          <div class="form-grid">
+            <div class="field"><label for="planStart">Plan starts</label><input id="planStart" name="start" type="date" required></div>
+            <div class="field"><label for="planEnd">Target finish</label><input id="planEnd" name="end" type="date" required></div>
+            <div class="field"><label for="planBackstop">Hard backstop</label><input id="planBackstop" name="backstop" type="date" required></div>
+            <fieldset class="field range-field"><legend>Trip / unavailable period</legend><div class="row"><label class="sr-only" for="tripStart">Trip starts</label><input id="tripStart" name="tripStart" type="date" required><span aria-hidden="true">to</span><label class="sr-only" for="tripEnd">Trip ends</label><input id="tripEnd" name="tripEnd" type="date" required></div></fieldset>
+            <div class="field"><label for="weekendLight">Free weekend: light work (h/day)</label><input id="weekendLight" name="weekendLight" type="number" min="0" max="12" step="0.25" required></div>
+            <div class="field"><label for="weekendFocus">Free weekend: focused work (h/day)</label><input id="weekendFocus" name="weekendFocus" type="number" min="0" max="12" step="0.25" required></div>
+            <div class="field"><label for="weekdayCapShown">Weekdays (from Settings)</label><input id="weekdayCapShown" type="text" readonly aria-describedby="weekdayCapHelp"><span class="hint" id="weekdayCapHelp">Light + focused hours are set in <a href="#settings">Settings</a>.</span></div>
+          </div>
+          <div class="row actions">
+            <button type="submit" class="primary" id="generatePlan">Generate / regenerate full plan</button>
+            <button type="button" id="clearPlan">Clear scheduled dates</button>
+            <button type="button" id="downloadPlanCsv" aria-haspopup="dialog">Download planner CSV…</button>
+          </div>
+        </form>
+        <div id="planReport" class="kpi-row" aria-live="polite"></div>
+        <p class="small muted">Rules: weekends from the DAMS start date are DAMS days (0.5 h light recap, no focused work); the trip window is unavailable; 1–13 Nov is a college break (weekend-style capacities); weekday capacities come from your Settings. Use “Day settings” on any day for holidays or busy days.</p>
+      </details>
+
+      <section class="panel" aria-labelledby="h-backlog">
+        <h3 id="h-backlog">Unscheduled / backlog</h3>
+        <div class="task-list" id="backlogList"></div>
+      </section>
+      <section class="panel" aria-labelledby="h-load">
+        <h3 id="h-load">Schedule workload by week</h3>
+        <div id="weeklyLoad" class="table-wrap" tabindex="0" role="region" aria-label="Weekly workload table (scrollable)"></div>
+      </section>
+      <details class="panel">
+        <summary><strong>College theory timetable &amp; Batch G posting rotation</strong></summary>
+        <p class="small muted">From the academic planning reference. The timetable can change; use it as a planning constraint, not a live attendance register.</p>
+        <div class="table-wrap" tabindex="0" role="region" aria-label="Weekly theory timetable">
+          <table>
+            <caption class="sr-only">Weekly theory timetable</caption>
+            <thead><tr><th scope="col">Day</th><th scope="col">8–9 AM</th><th scope="col">1–2 PM</th><th scope="col">2–3 PM</th><th scope="col">3–4 PM</th></tr></thead>
+            <tbody>
+              <tr><th scope="row">Monday</th><td>ENT → Ophthal after term exam</td><td>CM</td><td>ENT</td><td>CM</td></tr>
+              <tr><th scope="row">Tuesday</th><td>Surgery</td><td>FMT</td><td>Medicine</td><td>Ophthal</td></tr>
+              <tr><th scope="row">Wednesday</th><td>Medicine</td><td>Ophthal</td><td>ENT</td><td>CM</td></tr>
+              <tr><th scope="row">Thursday</th><td>OBGY</td><td>CM</td><td>Surgery</td><td>FMT</td></tr>
+              <tr><th scope="row">Friday</th><td>FMT</td><td>OBGY</td><td>FAP/SGT</td><td>CM</td></tr>
+              <tr><th scope="row">Saturday</th><td>AETCOM</td><td colspan="3">Clinical postings 9 AM–12 noon; no afternoon sessions listed</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="table-wrap" tabindex="0" role="region" aria-label="Batch G posting rotation" style="margin-top:12px">
+          <table>
+            <caption class="sr-only">Posting rotation by date range</caption>
+            <thead><tr><th scope="col">Dates</th><th scope="col">Medicine</th><th scope="col">Surgery</th><th scope="col">OBGY</th><th scope="col">CM</th><th scope="col">ENT</th><th scope="col">Ophthal</th><th scope="col">Surg/Paed</th><th scope="col">Ortho/Psych</th></tr></thead>
+            <tbody>
+              <tr><th scope="row">12 Oct–15 Nov</th><td>A</td><td>B</td><td>C</td><td>D</td><td>E</td><td>F</td><td>G</td><td>H</td></tr>
+              <tr><th scope="row">16 Nov–13 Dec</th><td>H</td><td>A</td><td>B</td><td>C</td><td>D</td><td>E</td><td>F</td><td>G</td></tr>
+              <tr><th scope="row">14 Dec–3 Jan</th><td>G</td><td>H</td><td>A</td><td>B</td><td>C</td><td>D</td><td>E</td><td>F</td></tr>
+              <tr><th scope="row">4–31 Jan</th><td>F</td><td>G</td><td>H</td><td>A</td><td>B</td><td>C</td><td>D</td><td>E</td></tr>
+              <tr><th scope="row">1 Feb–14 Mar</th><td>E</td><td>F</td><td>G</td><td>H</td><td>A</td><td>B</td><td>C</td><td>D</td></tr>
+              <tr><th scope="row">15 Mar–11 Apr</th><td>D</td><td>E</td><td>F</td><td>G</td><td>H</td><td>—</td><td>B</td><td>C</td></tr>
+              <tr><th scope="row">12 Apr–9 May</th><td>C</td><td>D</td><td>E</td><td>F</td><td>G</td><td>—</td><td>A</td><td>B</td></tr>
+              <tr><th scope="row">10 May–13 Jun</th><td>B</td><td>C</td><td>D</td><td>E</td><td>F</td><td>—</td><td>G</td><td>A</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="small muted">Roll number 184 was recorded as Batch G in the earlier planning notes; verify locally if your institution uses a different grouping rule. Official internal assessment theory is listed for 22 Feb 2027; clinical assessment approx. 15–28 Feb (year/date consistency flagged in source). Summer vacation 24–30 May; prelims July 2027, exact dates not given.</p>
+      </details>
+    </section>
+
+    <!-- TASK LIBRARY -->
+    <section class="page" id="page-tasks" aria-labelledby="h-tasks" hidden>
+      <div class="heading">
+        <div><h2 id="h-tasks" tabindex="-1">Task library</h2><p class="sub">Search, filter, complete, reschedule and bulk-schedule your indexed lectures. Missing durations use a provisional 20-minute estimate.</p></div>
+        <button type="button" class="primary" id="addTaskBtn">+ Add task</button>
+      </div>
+      <form class="panel filters" id="taskFilters" role="search" aria-label="Filter tasks" onsubmit="return false">
+        <div class="form-grid four">
+          <div class="field"><label for="searchTask">Search title <kbd>/</kbd></label><input id="searchTask" type="search" placeholder="e.g. screening, retina, cohort" autocomplete="off"></div>
+          <div class="field"><label for="subjectFilter">Subject</label><select id="subjectFilter"><option value="">All subjects</option></select></div>
+          <div class="field"><label for="categoryFilter">Category</label><select id="categoryFilter"><option value="">All categories</option></select></div>
+          <div class="field"><label for="statusFilter">Status</label><select id="statusFilter">
+            <option value="">All statuses</option><option value="todo">Not completed</option><option value="done">Completed</option>
+            <option value="unscheduled">Not scheduled</option><option value="scheduled">Scheduled</option><option value="estimated">Estimated duration</option></select></div>
+        </div>
+        <div class="row"><button type="button" id="clearFilters">Clear filters</button></div>
+      </form>
+      <div class="row between list-bar">
+        <span class="muted small" id="taskCount" role="status"></span>
+        <div class="row"><span class="muted small" id="selCount" role="status"></span><button type="button" id="bulkScheduleBtn">Schedule selected…</button></div>
+      </div>
+      <div class="table-wrap" tabindex="0" role="region" aria-label="Task table (scrollable)">
+        <table id="taskTableEl">
+          <caption class="sr-only">Indexed lectures and planning entries</caption>
+          <thead><tr>
+            <th scope="col" class="narrow"><input type="checkbox" id="selectAll" aria-label="Select all shown tasks"></th>
+            <th scope="col">Subject / section</th><th scope="col">Lecture</th><th scope="col">Work type</th><th scope="col">Runtime</th><th scope="col">Study time</th><th scope="col">Scheduled</th><th scope="col">Status</th><th scope="col">Actions</th>
+          </tr></thead>
+          <tbody id="taskTable"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- SIMULATOR -->
+    <section class="page" id="page-simulator" aria-labelledby="h-simulator" hidden>
+      <div class="heading"><div><h2 id="h-simulator" tabindex="-1">What-if simulator</h2><p class="sub">Preview how a disruption consumes your reserve before changing anything.</p></div></div>
+      <div class="grid2 even">
+        <form class="panel" id="simForm" novalidate aria-labelledby="h-siminputs">
+          <h3 id="h-siminputs">Disruption inputs</h3>
+          <div class="stack">
+            <div class="field"><label for="simHours">Hours of work to move</label><input type="number" id="simHours" min="0" max="40" step="0.25"></div>
+            <div class="field"><label for="simReserve">Available buffer reserve (hours)</label><input type="number" id="simReserve" min="0" max="100" step="0.5"></div>
+            <div class="field"><label for="simDays">Spread over how many days?</label><input type="number" id="simDays" min="1" max="14" step="1"></div>
+            <div class="field"><label for="simExisting">Hours already planned on each of those days</label><input type="number" id="simExisting" min="0" max="12" step="0.25"></div>
+          </div>
+          <div class="row actions"><button type="submit" class="primary" id="runSim">Calculate impact</button></div>
+        </form>
+        <section class="panel" aria-labelledby="h-impact">
+          <h3 id="h-impact">Impact preview</h3>
+          <div class="kpi-grid" aria-live="polite">
+            <div class="kpi"><span class="small muted">Reserve after move</span><strong id="simRemain">—</strong></div>
+            <div class="kpi"><span class="small muted">Extra per day</span><strong id="simPerDay">—</strong></div>
+            <div class="kpi"><span class="small muted">Projected daily load</span><strong id="simLoad">—</strong></div>
+            <div class="kpi"><span class="small muted">Risk</span><strong id="simRisk">—</strong></div>
+          </div>
+          <div class="progress meter" role="progressbar" aria-label="Reserve remaining after the move" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="simBarWrap"><span id="simBar"></span></div>
+          <p id="simAdvice" class="muted"></p>
+          <div class="row actions"><button type="button" id="sendToBacklog" class="primary">Create backlog item</button></div>
+        </section>
+      </div>
+    </section>
+
+    <!-- DATA AUDIT -->
+    <section class="page" id="page-data" aria-labelledby="h-data" hidden>
+      <div class="heading"><div><h2 id="h-data" tabindex="-1">Data audit</h2><p class="sub">What is verified, estimated, or still waiting for a title-level import.</p></div></div>
+      <div class="cards" id="dataCards" role="list" aria-label="Entries by subject"></div>
+      <section class="panel" aria-labelledby="h-rules">
+        <h3 id="h-rules">Data integrity rules</h3>
+        <ul class="bullets">
+          <li>Missing durations are estimated at 20 minutes and clearly flagged.</li>
+          <li>Potential duplicates stay separate until you confirm them.</li>
+          <li>FMT (44 videos / 33 h 56 min) and ENT (65 / 47 h 23 min) totals are kept, but their title-level lists are not in the embedded data. They are never invented or treated as single videos.</li>
+          <li>PSM entries 49 and 50 are a possible duplicate and remain separate.</li>
+          <li>Posting catch-up uses a provisional 3 hours per missed weekday; delete those blocks if your real missed sessions differ.</li>
+          <li>The official timetable and your reported vacation dates differ; the scheduler uses your 1–13 Nov break.</li>
+        </ul>
+        <div class="row actions">
+          <button type="button" id="exportTasksCsv">Export task library CSV</button>
+          <button type="button" id="importTasksBtn">Import task CSV…</button>
+          <input type="file" id="taskCsvFile" accept=".csv,text/csv" hidden aria-label="Task CSV file to import">
+        </div>
+        <p class="small muted">CSV columns: <code>title</code>, <code>subject</code>, <code>category</code>, <code>durationSec</code> (required); <code>id</code>, <code>sourceDuration</code>, <code>status</code>, <code>type</code> (optional). Export first to get a matching sample.</p>
+      </section>
+      <section class="panel" aria-labelledby="h-unres">
+        <h3 id="h-unres">Estimated / unresolved entries</h3>
+        <div id="estimatedList" class="task-list"></div>
+      </section>
+    </section>
+
+    <!-- SETTINGS -->
+    <section class="page" id="page-settings" aria-labelledby="h-settings" hidden>
+      <div class="heading"><div><h2 id="h-settings" tabindex="-1">Settings</h2><p class="sub">These assumptions drive every time estimate in the app.</p></div></div>
+      <form class="panel" id="settingsForm" novalidate aria-labelledby="h-assume">
+        <h3 id="h-assume">Study-time assumptions</h3>
+        <div class="form-grid">
+          <div class="field"><label for="speed">Playback speed</label><select id="speed" name="speed"><option value="1">1×</option><option value="1.25">1.25×</option><option value="1.5">1.5×</option><option value="1.75">1.75×</option><option value="2">2×</option></select></div>
+          <div class="field"><label for="annotation">Annotation overhead (% of playback time)</label><input id="annotation" name="annotation" type="number" min="0" max="100" step="1" required></div>
+          <div class="field"><label for="recall">Brief recall overhead (%)</label><input id="recall" name="recall" type="number" min="0" max="100" step="1" required></div>
+          <div class="field"><label for="weeklyBuffer">Weekly buffer reserve (hours)</label><input id="weeklyBuffer" name="weeklyBuffer" type="number" min="0" max="30" step="0.5" required></div>
+        </div>
+        <h3 class="sub-h">Daily study blocks</h3>
+        <p class="small muted">Two separate capacities. Light work fits around college and postings; focused work is for lectures and difficult concepts at home. They are never pooled into one bucket.</p>
+        <div class="form-grid">
+          <div class="field"><label for="collegeHours">Light work — college gaps (h per weekday)</label><input id="collegeHours" name="collegeHours" type="number" min="0" max="6" step="0.25" required></div>
+          <div class="field"><label for="studyHours">Focused work — home / evening (h per weekday)</label><input id="studyHours" name="studyHours" type="number" min="0" max="12" step="0.25" required></div>
+          <div class="field"><label for="breakMin">Break between focused tasks (min)</label><input id="breakMin" name="breakMin" type="number" min="0" max="60" step="5" required></div>
+          <div class="field"><label for="focusStart">Focused work starts (college days)</label><input id="focusStart" name="focusStart" type="time" required><span class="hint">Home by about 5:45 PM, rested by 6:30 PM.</span></div>
+          <div class="field"><label for="weekendFocusStart">Focused work starts (weekends / break)</label><input id="weekendFocusStart" name="weekendFocusStart" type="time" required></div>
+          <div class="field"><label for="bedtime">Bedtime</label><input id="bedtime" name="bedtime" type="time" required><span class="hint">Focused work is planned to finish 15 minutes before this.</span></div>
+        </div>
+        <div class="row actions"><button type="submit" class="primary">Save settings</button><span class="muted small">Weekday planning capacity = focused + college-gap hours. Re-run the scheduler afterwards to apply it to the calendar.</span></div>
+      </form>
+      <section class="panel" aria-labelledby="h-constraints">
+        <h3 id="h-constraints">Academic constraints currently recorded</h3>
+        <ul class="bullets">
+          <li>College and postings: weekdays and Saturday, with clinical posting blocks in the morning.</li>
+          <li>Weekend DAMS: offline classes 9 AM–9 PM starting 13 November 2026.</li>
+          <li>Trip protection: about 1–15 December 2026; missed teaching becomes a separate catch-up category.</li>
+          <li>Post-end preparation: protect the week before each post-end examination.</li>
+          <li>Daily routine: home around 5:45 PM, rested by about 6:30 PM, bedtime by 10:30 PM. Focused work is scheduled from 6:30 PM with breaks and finishes before bedtime where possible.</li>
+        </ul>
+      </section>
+      <section class="panel danger-zone" aria-labelledby="h-danger">
+        <h3 id="h-danger">Reset</h3>
+        <p class="small muted">Restores the original task library, settings and plan. This cannot be undone, so export a backup first if you need one.</p>
+        <button type="button" class="danger" id="resetBtn">Reset everything…</button>
+      </section>
+    </section>
+  </main>
+</div>
+
+<div class="toasts" id="toasts" role="status" aria-live="polite" aria-atomic="false"></div>
+
+<script type="module" src="js/app.js"></script>
+</body>
+</html>

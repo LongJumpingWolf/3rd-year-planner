@@ -1,0 +1,11 @@
+{
+  "name": "MBBS Study Command Center",
+  "short_name": "Study Center",
+  "description": "Offline-first MBBS study planner.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#1b2a33",
+  "theme_color": "#1b2a33",
+  "icons": [{ "src": "favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+}

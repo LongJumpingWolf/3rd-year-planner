@@ -1,0 +1,17 @@
+{
+  "name": "mbbs-study-command-center",
+  "version": "2.0.0",
+  "description": "Offline-first MBBS study planner: dashboard, weekly calendar, auto-scheduler, task library and what-if simulator.",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test tests/unit/*.test.js",
+    "test:e2e": "node tests/e2e/run.mjs",
+    "test:all": "npm test && npm run test:e2e"
+  },
+  "devDependencies": {
+    "axe-core": "^4.14.0",
+    "playwright-core": "^1.64.0"
+  }
+}
