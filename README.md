@@ -55,10 +55,15 @@ How it behaves: each account stores one row. Edits upload about 1.5 seconds afte
 
 ## Viewer link (for a parent or friend)
 
-The Dashboard's **Share progress** button (or Settings > **Viewer link**) creates a secret link to a separate, read-only page (`view.html`) in big print: overall progress, on track / behind, whether you studied today, streak, the last 7 days, lectures per subject, a countdown and your own **Also done** notes (add them in the Daily view, under each day).
+The Dashboard's **Share progress** button (or Settings > **Viewer link**) creates a secret link to a separate, read-only page (`view.html`) in big print. It shows:
+
+- **Refresh** at the top, with when it was last updated.
+- **Still pending**: the lectures you are behind on (those planned for earlier days and still open), named, with a **Notify on WhatsApp** button. Pressing it opens WhatsApp with a short reminder already typed, listing the pending lectures; the viewer just presses send. Add your WhatsApp number in Settings > Viewer link (country code, digits only) and the message goes straight to you; leave it empty and the viewer picks your contact themselves.
+- **Overall progress**, **On track / behind**, **Today's work done** (the percentage of today's planned work that is ticked off), and a **Study streak**: days in a row on which at least 90% of the day's planned work was done (days with nothing planned are skipped; today counts once it reaches 90% and does not break the streak before that). Work that was missed and later moved forward by a re-spread still counts against the day it was planned for.
+- The last 7 days, lectures per subject (paused subjects are marked), a countdown, and your own **Also done** notes (add them in the Daily view, under each day).
 
 - Run [supabase/viewer.sql](supabase/viewer.sql) once in the Supabase SQL editor (after `schema.sql`), then sign in and press **Create viewer link**.
-- The viewer sees **numbers only**: no lecture titles, no settings, no plan, no controls, and the page has no link to the planner. The summary is stored in its own table, so the link cannot reach your planner data.
+- The viewer sees the numbers above and the titles of lectures you are behind on (nothing else from your library), no settings, no plan, no controls, and the page has no link to the planner. Anyone who has the link can also see the WhatsApp number if you add one. The summary is stored in its own table, so the link cannot reach your planner data.
 - The link holds 192 random bits after a `#`, which browsers never send to servers or logs. Anyone who has the link can open it, so share it only with people you trust.
 - **Make a new link** kills the old one instantly; **Turn off** also deletes the stored summary. The summary refreshes whenever your progress syncs, and the viewer page re-checks every minute.
 
@@ -76,7 +81,7 @@ On the **Weekly calendar** page, the **Plan tuner** builds a plan that finishes 
 - **Asleep subjects.** Set a subject to *Asleep* to keep it in the library but leave it out of the plan, the daily timetable and the hours needed. Wake it later by giving it a phase.
 - **Missed days.** Planning always starts from today, so days that are over never receive new work and a change of strategy never turns into "backlog". When lectures planned for earlier days are still open, a banner offers **Re-spread from today**, which moves them forward evenly (Undo is offered).
 
-Notes: weekend focused hours come from the scheduler form below; the weekday slider is capped at what fits between your evening start and bedtime. Automatic splitting of a lecture into sessions uses gaps of at least 20 minutes (15 when the schedule is very tight).
+Notes: weekend focused hours come from the scheduler form below. The hours slider is not capped by your evening window: it shows the estimated focused hours you need each weekday to finish by the chosen date (up to 12). When that is more than fits between your evening start and bedtime, the tuner warns, and the Daily view flags any day that would run past bedtime. Automatic splitting of a lecture into sessions uses gaps of at least 20 minutes (15 when the schedule is very tight).
 
 ## Viewer link troubleshooting
 

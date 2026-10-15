@@ -1,7 +1,7 @@
-// Read-only viewer page. Reads one numbers-only summary through a single database function, keyed by the secret token in the
+// Read-only viewer page. Reads one small summary through a single database function, keyed by the secret token in the
 // link. It has no sign-in, no navigation back to the planner, and imports none of the planner code.
 import { supabaseConfig } from './supabase-config.js';
-import { agoText, statusView, targetView, todayView } from './viewerModel.js';
+import { agoText, pendingView, statusView, streakView, targetView, todayView, whatsappUrl } from './viewerModel.js';
 import { dateISO, esc, fmtDate } from './utils.js';
 
 const REFRESH_MS = 60000;
@@ -35,6 +35,8 @@ function render(snap) {
   const today = dateISO(now);
   const st = statusView(snap.status, snap.startsOn);
   const td = todayView(snap, today);
+  const sk = streakView(snap);
+  const pend = pendingView(snap);
   const target = targetView(snap, today);
   const maxWeek = Math.max(1, ...snap.week.map((d) => d.count));
   const weekTotal = snap.week.reduce((s, d) => s + d.count, 0);
@@ -43,12 +45,25 @@ function render(snap) {
 
   app.setAttribute('aria-busy', 'false');
   app.innerHTML = `
-    <header><h1>${esc(title)}</h1></header>
+    <header class="top">
+      <div><h1>${esc(title)}</h1><p class="small" id="updated">Updated ${esc(agoText(snap.updatedAt, now))}</p></div>
+      <button type="button" id="refresh" aria-label="Refresh the progress now"><span aria-hidden="true">↻</span> Refresh</button>
+    </header>
 
     <div class="status ${st.tone}" role="status">
       <div class="ico" aria-hidden="true"><span>${st.icon}</span></div>
       <div>${esc(st.text)}${st.detail ? `<span class="detail">${esc(st.detail)}</span>` : ''}</div>
     </div>
+
+    ${pend.total ? `<section class="card pending" aria-labelledby="h-pending">
+      <h2 id="h-pending">Still pending (${pend.total})</h2>
+      <ul class="pend">
+        ${pend.items.map((p) => `<li><strong>${esc(p.subject)}</strong> ${esc(p.title)}${p.when ? `<span class="when"> · planned ${esc(p.when)}</span>` : ''}</li>`).join('')}
+        ${pend.more ? `<li class="muted">…and ${pend.more} more</li>` : ''}
+      </ul>
+      <a class="notify" href="${esc(whatsappUrl(snap))}" target="_blank" rel="noopener noreferrer">Notify ${esc(snap.name || 'them')} on WhatsApp<span class="sr-only"> (opens WhatsApp with a ready message)</span></a>
+      <p class="small">Opens WhatsApp with a short reminder already typed. You just press send.</p>
+    </section>` : ''}
 
     <section class="card" aria-labelledby="h-overall">
       <h2 id="h-overall">Overall progress</h2>
@@ -59,14 +74,15 @@ function render(snap) {
 
     <div class="pair">
       <section class="card" aria-labelledby="h-today">
-        <h2 id="h-today">Studied today?</h2>
+        <h2 id="h-today">Today's work done</h2>
         <p class="num">${esc(td.headline)}</p>
+        ${td.pct === null ? '' : `<div class="bar" role="progressbar" aria-label="Today's planned work completed" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${td.pct}"><span style="width:${Math.min(100, td.pct)}%"></span></div>`}
         <p class="sub">${esc(td.line)}</p>
       </section>
       <section class="card" aria-labelledby="h-streak">
         <h2 id="h-streak">Study streak</h2>
-        <p class="num">${plural(snap.streak, 'day')}</p>
-        <p class="sub">${snap.streak ? 'in a row' : 'Starts with the next lecture done'}</p>
+        <p class="num">${esc(sk.num)}</p>
+        <p class="sub">${esc(sk.line)}</p>
       </section>
     </div>
 
@@ -98,11 +114,7 @@ function render(snap) {
       <p class="num">${esc(target.num)}</p>
       <p class="sub">${esc(target.label)}</p>
     </section>` : ''}
-
-    <footer>
-      <p class="small" id="updated">Updated ${esc(agoText(snap.updatedAt, now))}</p>
-      <button type="button" id="refresh">Refresh</button>
-    </footer>`;
+`;
   document.getElementById('refresh').addEventListener('click', load);
 }
 

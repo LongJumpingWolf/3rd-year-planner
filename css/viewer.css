@@ -43,7 +43,10 @@ body {
   line-height: 1.4;
 }
 main { max-width: 760px; margin: 0 auto; padding: 20px 16px 48px; display: grid; gap: 16px; }
-h1 { font-size: 1.6rem; margin: 8px 0 0; }
+h1 { font-size: 1.6rem; margin: 0; }
+.top { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; padding-top: 4px; }
+.top .small { margin-top: 2px; }
+.top button { flex: none; }
 h2 { font-size: 1.15rem; margin: 0 0 12px; }
 .sub, .small { color: var(--muted); margin: 0; }
 .small { font-size: .85rem; }
@@ -81,6 +84,15 @@ h2 { font-size: 1.15rem; margin: 0 0 12px; }
 .subj .head { display: flex; justify-content: space-between; gap: 12px; font-size: 1.05rem; margin-bottom: 6px; }
 .subj .head b { white-space: nowrap; }
 .subj .paused { color: var(--muted); font-size: .8rem; }
+.card.pending { border-color: var(--warn); background: var(--warn-soft); }
+.pend { margin: 0 0 14px; padding-left: 1.1em; display: grid; gap: 6px; font-size: 1.05rem; }
+.pend .when { color: var(--muted); font-size: .85rem; }
+.pend .muted { color: var(--muted); }
+.notify { display: flex; align-items: center; justify-content: center; text-align: center; min-height: 52px; padding: 12px 18px; border-radius: 12px; background: var(--accent); color: #fff; font-weight: 700; font-size: 1.1rem; text-decoration: none; margin-bottom: 8px; }
+.notify:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
+@media (prefers-color-scheme: dark) { .notify { color: #0c1a18; } }
+.card.pending .small { color: var(--ink); }
+.today .bar, .card .bar + .sub { margin-top: 8px; }
 .subj .bar { height: 14px; }
 
 .days { display: grid; gap: 14px; margin: 0; padding: 0; list-style: none; }
@@ -88,6 +100,5 @@ h2 { font-size: 1.15rem; margin: 0 0 12px; }
 .days ul { margin: 0; padding-left: 1.2em; }
 .days li { font-size: 1.1rem; margin: 2px 0; }
 
-footer { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
 button { font: inherit; font-size: 1rem; padding: 10px 18px; min-height: 44px; border-radius: 10px; border: 2px solid var(--accent); background: transparent; color: var(--accent); cursor: pointer; font-weight: 600; }
 button:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }

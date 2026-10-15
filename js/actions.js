@@ -415,6 +415,7 @@ export async function runGenerate(formValues, { silent = false, undoable = true 
   const res = generatePlan(state.tasks, cfg, state.settings, new Date(), { today: todayISO() });
   if (res.error) return { error: res.error };
   const snap = JSON.stringify(state);
+  recordMisses();
   state.planConfig = cfg;
   state.tasks = res.tasks;
   state.backlog = res.backlog;
@@ -428,6 +429,25 @@ export async function runGenerate(formValues, { silent = false, undoable = true 
     });
   }
   return { ok: true };
+}
+
+/** Before a rebuild moves open lectures off past days, remember their planned hours on those days (for the day's completion %). */
+function recordMisses() {
+  state.missLog = { ...(state.missLog || {}) };
+  for (const t of overdueLectures()) {
+    state.missLog[t.scheduledDate] = Math.round(((state.missLog[t.scheduledDate] || 0) + taskPlannedSec(t, state.settings) / 3600) * 1000) / 1000;
+  }
+}
+
+/** Save the owner's WhatsApp number for the viewer's Notify button. Returns an error string, or '' when saved. */
+export function setViewerPhone(value) {
+  const digits = String(value ?? '').replace(/\D/g, '');
+  if (digits && (digits.length < 8 || digits.length > 15)) return 'Enter the number with country code, 8 to 15 digits (for example 919876543210).';
+  if (digits === (state.viewer?.phone || '')) return '';
+  state.viewer = { phone: digits };
+  commit();
+  toast(digits ? 'WhatsApp number saved. Your viewer\'s Notify button will message it.' : 'WhatsApp number removed. Your viewer will pick your contact themselves.');
+  return '';
 }
 
 /** Open, non-paused lectures that were planned for a day that is already over (and are not pinned, so a rebuild can move them). */

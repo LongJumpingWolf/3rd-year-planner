@@ -25,6 +25,8 @@ export function freshState() {
     planMeta: null,
     simLast: { hours: 2, reserve: 6, days: 3, existing: 1 },
     extras: {},
+    viewer: { phone: '' },
+    missLog: {},
   };
 }
 
@@ -134,8 +136,16 @@ export function sanitizeState(raw) {
     const items = list.map((x) => String(x ?? '').trim().slice(0, EXTRA_MAX_LEN)).filter(Boolean).slice(0, EXTRA_MAX_PER_DAY);
     if (items.length) extras[iso] = items;
   }
+  // Viewer link: the owner's WhatsApp number (digits, with country code) for the Notify button.
+  const phoneDigits = String(raw.viewer?.phone ?? '').replace(/\D/g, '');
+  const viewer = { phone: phoneDigits.length >= 8 && phoneDigits.length <= 15 ? phoneDigits : '' };
+  // Planned hours that were missed on a past day and moved forward by a re-plan, so that day's completion stays honest.
+  const missLog = {};
+  for (const [iso, h] of Object.entries(raw.missLog && typeof raw.missLog === 'object' ? raw.missLog : {})) {
+    if (isValidISO(iso) && Number.isFinite(Number(h)) && Number(h) > 0) missLog[iso] = Math.round(Number(h) * 1000) / 1000;
+  }
   const planMeta = raw.planMeta && typeof raw.planMeta === 'object' ? raw.planMeta : null;
-  return { tasks, settings, planConfig, backlog, planMeta, simLast, extras, version: Number(raw.version) >= SCHEMA_VERSION ? SCHEMA_VERSION : 1 };
+  return { tasks, settings, planConfig, backlog, planMeta, simLast, extras, viewer, missLog, version: Number(raw.version) >= SCHEMA_VERSION ? SCHEMA_VERSION : 1 };
 }
 
 let idCounter = 0;

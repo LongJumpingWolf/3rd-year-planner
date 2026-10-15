@@ -356,10 +356,10 @@ test('focused work has clock times from 6:30 PM with breaks and flags anything p
   assert.ok(f.clock.every((c) => c.end <= 22 * 60 + 15), 'finishes by 10:15 PM');
   assert.equal(f.pastBedtime, false);
   assert.equal(dayStats(st.tasks, '2026-10-14', st.planConfig, st.settings).blocks.light.clock, null, 'light work has no clock times');
-  // late start pushes the end past bedtime and the capacity shrinks to what fits
+  // A late start no longer shrinks the hours you asked for; the day is flagged instead when it would run past bedtime.
   const late = { ...st.settings, focusStart: '20:30' };
-  assert.ok(dayBlocks(fromISO('2026-10-14'), st.planConfig, late).focus < 1.5);
-  assert.ok(dayStats(st.tasks, '2026-10-14', st.planConfig, late).blocks.focus.pastBedtime || dayStats(st.tasks, '2026-10-14', st.planConfig, late).blocks.focus.over > 0);
+  assert.equal(dayBlocks(fromISO('2026-10-14'), st.planConfig, late).focus, st.settings.studyHours);
+  assert.equal(dayStats(st.tasks, '2026-10-14', st.planConfig, late).blocks.focus.pastBedtime, true);
   assert.equal(validateSettingsTimes({ ...S, bedtime: '25:00' }).field, 'bedtime');
   assert.equal(validateSettingsTimes({ ...S, focusStart: '23:00' }).field, 'focusStart');
   assert.equal(validateSettingsTimes(S), null);

@@ -175,9 +175,10 @@ test('tasks pinned by hand stay put and use up capacity', () => {
 test('outlook: fewer hours means a later finish, more hours an earlier one', () => {
   const st = freshState();
   const out = planOutlook(st.tasks, st.planConfig, { ...st.settings, ...FAST }, { today: TODAY });
-  const max = out.maxHours;
-  assert.ok(max >= 3 && max <= 4);
-  const ends = [1, 1.5, 2, 2.5, 3, max].map((h) => out.earliestEnd(h) ?? '9999-12-31'); // null = not within the horizon
+  const max = out.windowHours;
+  assert.ok(max >= 3 && max <= 4, 'the comfortable evening window is only a guide');
+  assert.equal(out.maxHours, 12, 'the slider is not capped by it');
+  const ends = [1, 1.5, 2, 2.5, 3, max, 6, 12].map((h) => out.earliestEnd(h) ?? '9999-12-31'); // null = not within the horizon
   for (let i = 1; i < ends.length; i++) assert.ok(ends[i] <= ends[i - 1], `${ends.join(' ')}`);
   assert.ok(ends.at(-1) < ends[0]);
   assert.equal(out.earliestEnd(0.25), null, 'a quarter hour a day never finishes');
@@ -268,4 +269,24 @@ test('saved study order and sleeping subjects survive sanitising; junk is droppe
   const bare = sanitizeState(JSON.parse(JSON.stringify(freshState())));
   assert.equal(bare.planConfig.groups, null);
   assert.deepEqual(bare.planConfig.asleep, []);
+});
+
+test('hours are not capped by the evening window: the outlook reports what is really needed and the planner plans exactly that', () => {
+  const st = freshState();
+  const settings = { ...st.settings, speed: 1.5 }; // slower playback: a tight date needs more than the evening fits
+  const out = planOutlook(st.tasks, st.planConfig, settings, { today: TODAY });
+  const end = '2026-11-30';
+  const need = out.hoursFor(end);
+  assert.ok(need !== null && need > out.windowHours, `needs ${need} h, evening fits ${out.windowHours} h`);
+  assert.ok(need <= 12);
+  // The weekday block really offers those hours, and the scheduler fits everything by the date.
+  const weekday = dayBlocks(fromISO('2026-10-20'), st.planConfig, { ...settings, studyHours: need });
+  assert.equal(weekday.focus, need);
+  const res = generatePlan(st.tasks, { ...st.planConfig, end, backstop: end }, { ...settings, studyHours: need }, NOW, { today: TODAY });
+  assert.equal(res.backlog.length + res.meta.afterTarget, 0, `at ${need} h/day`);
+  // Slightly fewer hours no longer fits: the estimate is not padded.
+  const less = generatePlan(st.tasks, { ...st.planConfig, end, backstop: end }, { ...settings, studyHours: need - 0.75 }, NOW, { today: TODAY });
+  assert.ok(less.backlog.length + less.meta.afterTarget > 0);
+  // Truly impossible dates are still refused.
+  assert.equal(out.hoursFor('2026-10-20'), null);
 });

@@ -174,8 +174,8 @@
             <input type="range" id="tuneEnd" min="1" max="200" step="1" value="60">
           </div>
           <div class="field">
-            <label for="tuneHours">Focused hours per weekday <output id="tuneHoursOut" for="tuneHours"></output></label>
-            <input type="range" id="tuneHours" min="0.5" max="4" step="0.25" value="2.5">
+            <label for="tuneHours">Focused hours needed per weekday <output id="tuneHoursOut" for="tuneHours"></output></label>
+            <input type="range" id="tuneHours" min="0.5" max="12" step="0.25" value="2.5">
           </div>
         </div>
         <p class="notice" id="tuneVerdict" role="status"></p>
@@ -375,7 +375,7 @@
           <div class="field"><label for="breakMin">Break between focused tasks (min)</label><input id="breakMin" name="breakMin" type="number" min="0" max="60" step="5" required></div>
           <div class="field"><label for="focusStart">Focused work starts (college days)</label><input id="focusStart" name="focusStart" type="time" required><span class="hint">Home by about 5:45 PM, rested by 6:30 PM.</span></div>
           <div class="field"><label for="weekendFocusStart">Focused work starts (weekends / break)</label><input id="weekendFocusStart" name="weekendFocusStart" type="time" required></div>
-          <div class="field"><label for="bedtime">Bedtime</label><input id="bedtime" name="bedtime" type="time" required><span class="hint">Focused work is planned to finish 15 minutes before this.</span></div>
+          <div class="field"><label for="bedtime">Bedtime</label><input id="bedtime" name="bedtime" type="time" required><span class="hint">Focused work is planned for the hours you set; any day that would run past this time (minus 15 minutes) is flagged.</span></div>
         </div>
         <div class="row actions"><button type="submit" class="primary">Save settings</button><span class="muted small">Weekday planning capacity = focused + college-gap hours. Re-run the scheduler afterwards to apply it to the calendar.</span></div>
       </form>
@@ -396,13 +396,18 @@
       </section>
       <section class="panel" aria-labelledby="h-viewer">
         <h3 id="h-viewer">Viewer link</h3>
-        <p class="small muted">Share a simple, big-print page with a parent or friend. They see only numbers: overall progress, on track or behind, today, streak, this week, lectures per subject and your "Also done" notes. They never see lecture titles, your planner or any controls. Anyone who has the link can open it, so share it only with people you trust.</p>
+        <p class="small muted">Share a simple, big-print page with a parent or friend. They see overall progress, on track or behind, how much of today's work is done, a streak, this week, lectures per subject and your "Also done" notes. Lecture titles appear only for lectures you are behind on, so they can remind you. They never see your planner or any controls. Anyone who has the link can open it, so share it only with people you trust.</p>
         <p class="small" id="viewerState" role="status"></p>
         <div class="row" id="viewerLinkRow" hidden>
           <label class="sr-only" for="viewerUrl">Viewer link</label>
           <input id="viewerUrl" type="text" readonly>
           <button type="button" id="viewerCopy">Copy link</button>
           <a id="viewerOpen" href="#" target="_blank" rel="noopener noreferrer">Preview as viewer</a>
+        </div>
+        <div class="field">
+          <label for="viewerPhone">Your WhatsApp number for reminders (optional)</label>
+          <input id="viewerPhone" type="tel" inputmode="numeric" autocomplete="tel" placeholder="919876543210" aria-describedby="viewerPhoneHint">
+          <span class="hint" id="viewerPhoneHint">Country code first, digits only. When your viewer presses Notify, WhatsApp opens a ready message to this number. Leave it empty and they pick your contact themselves. Anyone who has the viewer link can see this number.</span>
         </div>
         <div class="row actions">
           <button type="button" class="primary" id="viewerCreate">Create viewer link</button>

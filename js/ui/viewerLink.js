@@ -3,11 +3,13 @@ import { cloudConfigured, onStatus, signInCloud } from '../cloud.js';
 import { disableShare, enableShare, explainShareError, onShare, onShareProblem, regenerateShare, viewerUrl } from '../share.js';
 import { supabaseConfig } from '../supabase-config.js';
 import { esc } from '../utils.js';
+import { setViewerPhone } from '../actions.js';
 import { confirmDialog, openDialog } from './dialogs.js';
 import { $ } from './dom.js';
 import { toast } from './toast.js';
 
 export function initViewerLink() {
+  const PHONE_HINT = $('#viewerPhoneHint').textContent;
   const stateEl = $('#viewerState');
   const row = $('#viewerLinkRow');
   const buttons = [$('#viewerCreate'), $('#viewerNew'), $('#viewerOff')];
@@ -56,6 +58,12 @@ export function initViewerLink() {
   };
 
   setupBtn.addEventListener('click', showSetupDialog);
+  $('#viewerPhone').addEventListener('change', (e) => {
+    const err = setViewerPhone(e.target.value);
+    const hint = $('#viewerPhoneHint');
+    hint.classList.toggle('error-text', !!err);
+    if (err) { hint.textContent = err; e.target.setAttribute('aria-invalid', 'true'); } else { e.target.removeAttribute('aria-invalid'); hint.classList.remove('error-text'); hint.textContent = PHONE_HINT; }
+  });
   create.addEventListener('click', () => run(enableShare, 'Viewer link created. Copy it and send it to your viewer.'));
   again.addEventListener('click', async () => {
     const ok = await confirmDialog({ title: 'Make a new link?', message: 'The current link stops working straight away. Anyone you shared it with will need the new one.', confirmLabel: 'Make new link' });
@@ -111,7 +119,7 @@ function showLinkDialog(url) {
     title: 'Share your progress',
     submitLabel: null,
     cancelLabel: 'Done',
-    body: `<p>Send this link to a parent or friend. They see big, simple numbers only: no lecture titles, no planner, no controls.</p>
+    body: `<p>Send this link to a parent or friend. They see big, simple progress numbers, and the titles of lectures you are behind on so they can remind you. No planner, no controls.</p>
       <div class="row"><label class="sr-only" for="shareUrl">Viewer link</label><input id="shareUrl" type="text" readonly value="${esc(url)}" style="flex:1 1 240px;min-width:0"><button type="button" id="shareCopy">Copy link</button></div>
       <p class="small muted">Anyone who has the link can open it. To switch it off or get a new link, go to Settings > Viewer link.</p>`,
     onOpen: (form) => {

@@ -5,6 +5,8 @@ import { $ } from './dom.js';
 let filledFor = null;
 
 export function renderSettings() {
+  const phone = $('#viewerPhone');
+  if (document.activeElement !== phone) phone.value = state.viewer?.phone ?? '';
   if (filledFor === state.settings) return;
   filledFor = state.settings;
   for (const k of Object.keys(DEFAULT_SETTINGS)) {

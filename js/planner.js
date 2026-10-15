@@ -141,11 +141,12 @@ export function dayBlocks(d, cfg, settings) {
   } else if (iso >= cfg.breakStart && iso <= cfg.breakEnd) {
     r = {
       light: Math.max(light0, num(cfg.weekendLight, 2)),
-      focus: Math.max(Math.min(focus0, focusWindowHours(settings, settings.focusStart)), Math.min(num(cfg.weekendFocus, 4), focusWindowHours(settings, settings.weekendFocusStart))),
+      focus: Math.max(focus0, Math.min(num(cfg.weekendFocus, 4), focusWindowHours(settings, settings.weekendFocusStart))),
       kind: 'break', note: 'College break',
     };
   } else {
-    r = { light: light0, focus: Math.min(focus0, focusWindowHours(settings, settings.focusStart)), kind: 'weekday', note: '' };
+    // The hours you ask for are planned as asked. When they are more than fit before bedtime the Daily view flags the late finish.
+    r = { light: light0, focus: focus0, kind: 'weekday', note: '' };
   }
   if (ex) {
     if (ex.light !== undefined && ex.light !== null) r.light = Math.max(0, num(ex.light, r.light));
@@ -620,8 +621,10 @@ function focusRoomFn(tasks, cfgIn, settings, from, to) {
   return { dates, room: (iso, hours) => Math.max(0, dayBlocks(fromISO(iso), cfg, { ...settings, studyHours: hours })[ 'focus' ] - (booked[iso] || 0)) };
 }
 
-/** The largest weekday focused-hours value that actually fits between the focused start time and bedtime. */
+/** The weekday focused hours that fit comfortably between the evening start and bedtime (a guide, not a limit). */
 export const maxFocusHours = (settings) => Math.floor(focusWindowHours(settings, settings.focusStart) * 4) / 4;
+/** The most focused hours per weekday the planner will consider (Settings accepts up to 12). */
+export const MAX_PLAN_HOURS = 12;
 
 /**
  * Both sides of the trade-off for the current plan:
@@ -636,10 +639,10 @@ export function planOutlook(tasks, cfgIn, settings, { today, horizonDays = 240 }
   const horizon = dateISO(addDays(fromISO(from), horizonDays));
   const { dates, room } = focusRoomFn(tasks, cfg, settings, from, horizon);
   const need = workH / PACK_EFFICIENCY;
-  const maxH = maxFocusHours(settings);
+  const maxH = MAX_PLAN_HOURS;
   const capUntil = (end, hours) => { let s = 0; for (const iso of dates) { if (iso > end) break; s += room(iso, hours); } return s; };
   return {
-    from, workH, maxHours: maxH,
+    from, workH, maxHours: maxH, windowHours: maxFocusHours(settings),
     earliestEnd(hours) {
       if (workH <= EPS) return from;
       let s = 0;

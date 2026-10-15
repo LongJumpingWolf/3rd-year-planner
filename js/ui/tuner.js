@@ -39,7 +39,7 @@ function groupsOf() {
 
 const outlook = () => planOutlook(state.tasks, { ...state.planConfig, asleep: asleepOf() }, state.settings, { today: todayIso() });
 
-/** Keep the two sliders consistent: the one the user last moved is the anchor, the other is solved for. */
+/** Keep the two sliders consistent: the one the user last moved is the anchor, the other is solved for. Hours are never capped by the evening window. */
 function solve(out) {
   const max = out.maxHours;
   const from = out.from;
@@ -54,8 +54,11 @@ function solve(out) {
     const h = out.hoursFor(draft.end);
     if (h === null) {
       draft.hours = max;
-      verdict = { tone: 'bad', text: `Even at the most your evening allows (${max} h a weekday) this does not finish by ${fmtDate(draft.end, { day: 'numeric', month: 'long' })}. Choose a later date, speed up playback in Settings, or put a subject to sleep.` };
+      verdict = { tone: 'bad', text: `Even ${max} focused hours every weekday is not enough to finish by ${fmtDate(draft.end, { day: 'numeric', month: 'long' })}. Choose a later date, speed up playback in Settings, or put a subject to sleep.` };
     } else draft.hours = Math.max(0.5, h);
+  }
+  if (verdict.tone === 'good' && draft.hours > out.windowHours + 0.01) {
+    verdict = { tone: 'warn', text: `That is ${(draft.hours - out.windowHours).toFixed(2).replace(/\.?0+$/, '')} h more than fits between your evening start and bedtime (${out.windowHours} h), so weekday focused work would run past bedtime unless you start earlier or move more study to weekends.` };
   }
   return verdict;
 }
@@ -80,17 +83,21 @@ function paint() {
   hoursSlider.value = String(draft.hours);
   const days = Math.max(1, daysBetween(out.from, draft.end));
   $('#tuneEndOut').textContent = `${fmtDate(draft.end, { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' })} (${plural(days, 'day')} from ${out.from === todayIso() ? 'today' : fmtDate(out.from, { day: 'numeric', month: 'short' })})`;
-  $('#tuneHoursOut').textContent = `${draft.hours} h (max ${out.maxHours} h before bedtime)`;
+  $('#tuneHoursOut').textContent = `${draft.hours} h${draft.hours > out.windowHours + 0.01 ? ` (your evening fits ${out.windowHours} h)` : ''}`;
   endSlider.setAttribute('aria-valuetext', fmtDate(draft.end, { weekday: 'long', day: 'numeric', month: 'long' }));
   hoursSlider.setAttribute('aria-valuetext', `${draft.hours} hours`);
 
   const v = $('#tuneVerdict');
   const pace = lectures ? hoursLeft / days : 0;
-  const ok = !verdict.text;
-  v.textContent = ok
-    ? (lectures ? `At ${draft.hours} focused hours a weekday you finish by ${fmtDate(draft.end, { day: 'numeric', month: 'long' })}, which is about ${pace.toFixed(1)} h of lecture study per calendar day on average. The load is spread evenly, so no day is a sprint.` : 'Nothing to schedule.')
-    : verdict.text;
-  v.classList.toggle('is-bad', !ok);
+  const when = fmtDate(draft.end, { day: 'numeric', month: 'long' });
+  if (verdict.tone === 'bad') v.textContent = verdict.text;
+  else {
+    const lead = draft.anchor === 'end' ? `To finish by ${when} you need about ${draft.hours} focused hours each weekday` : `At ${draft.hours} focused hours a weekday you finish by ${when}`;
+    const base = lectures ? `${lead}, which is about ${pace.toFixed(1)} h of lecture study per calendar day on average. The load is spread evenly, so no day is a sprint.` : 'Nothing to schedule.';
+    v.textContent = verdict.tone === 'warn' ? `${base} ${verdict.text}` : base;
+  }
+  v.classList.toggle('is-bad', verdict.tone === 'bad');
+  v.classList.toggle('is-warn', verdict.tone === 'warn');
 
   $('#phaseTable').innerHTML = subjectsOf(state.tasks).map((s) => {
     const mine = state.tasks.filter((t) => isVideo(t) && t.subject === s);

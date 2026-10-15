@@ -1403,7 +1403,8 @@ async function openViewer(snapshot, { hash = '#t=' + 'a'.repeat(43), viewport } 
 
 const SNAP = {
   v: 1, name: 'Asha', updatedAt: '2026-10-14T09:30:00.000Z', asOf: '2026-10-14', startsOn: '2026-10-12', done: 113, total: 270, pct: 42,
-  status: { code: 'slightly', behind: 2 }, today: { plannedLectures: 3, doneLectures: 2 }, streak: 6,
+  status: { code: 'slightly', behind: 2 }, today: { plannedLectures: 3, doneLectures: 2, pct: 62, plannedH: 4, doneH: 2.5 }, streak: 6, streakPct: 90,
+  pending: [{ subject: 'Anatomy', title: 'Brachial plexus', date: '2026-10-12' }, { subject: 'Physiology', title: 'Cardiac cycle <i>x</i>', date: '2026-10-13' }], pendingTotal: 4, phone: '919876543210',
   week: [0, 3, 4, 0, 5, 2, 2].map((count, i) => ({ iso: `2026-10-${String(8 + i).padStart(2, '0')}`, count })),
   subjects: [{ subject: 'Anatomy', done: 20, total: 40, pct: 50 }, { subject: 'Physiology', done: 5, total: 50, pct: 10 }],
   target: { date: '2026-12-20', daysLeft: 67 },
@@ -1416,12 +1417,16 @@ await test('viewer page: big, simple summary with the right numbers and no way i
   assert.equal((await page.textContent('.big')).replace(/\s/g, ''), '42%');
   assert.match(await page.textContent('.count'), /113 of 270 lectures done/);
   assert.match(await page.textContent('.status'), /A little behind: 2 lectures/);
-  assert.match(await page.textContent('#h-today + .num'), /Yes/);
+  assert.match(await page.textContent('#h-today'), /Today's work done/);
+  assert.equal((await page.textContent('#h-today + .num')).trim(), '62%', "today's completion, not yes/no");
+  assert.equal(await page.getAttribute('#h-today ~ .bar', 'aria-valuenow'), '62');
   assert.match(await page.textContent('#h-streak + .num'), /6 days/);
+  assert.match(await page.textContent('#h-streak ~ .sub'), /90% or more of the day's work done/);
   assert.equal(await page.locator('.subj li').count(), 2);
   assert.match(await page.textContent('#h-extras + .days'), /40 MCQs on cardiology/);
   assert.match(await page.textContent('#h-extras + .days'), /<b>x<\/b>/, 'notes are shown as text, never as HTML');
-  assert.equal(await page.locator('a').count(), 0, 'no links anywhere, so nothing leads to the planner');
+  assert.equal(await page.locator('a').count(), 1, 'the only link is the WhatsApp reminder: nothing leads to the planner');
+  assert.ok((await page.getAttribute('a', 'href')).startsWith('https://wa.me/'));
   assert.equal(await page.locator('nav, input, select, textarea').count(), 0);
   assert.match(await page.textContent('#updated'), /^Updated (just now|.+ ago)$/);
   assert.equal(calls.length, 1);
@@ -1648,6 +1653,87 @@ await test('dashboard "Share progress": needs sign-in first, then creates the li
 });
 
 
+
+await test('viewer page: Refresh sits at the top next to the title and works', async () => {
+  const { page, ctx, calls } = await openViewer(SNAP);
+  const box = await page.locator('#refresh').boundingBox();
+  assert.ok(box.y < 160, `refresh is near the top (y=${Math.round(box.y)})`);
+  assert.ok(box.width >= 44 && box.height >= 44, 'big enough to tap');
+  assert.equal(await page.locator('footer').count(), 0);
+  const before = calls.length;
+  await page.click('#refresh');
+  await page.waitForFunction((n) => window.__calls === undefined || true, before);
+  await page.waitForTimeout(400);
+  assert.ok(calls.length > before, 'refresh fetches again');
+  await ctx.close();
+});
+
+await test('viewer page: names what is pending and Notify opens WhatsApp with a ready-typed reminder', async () => {
+  const { page, ctx } = await openViewer(SNAP);
+  const card = page.locator('#h-pending').locator('xpath=ancestor::section');
+  assert.match(await card.textContent(), /Still pending \(4\)/);
+  assert.match(await card.textContent(), /Anatomy\s*Brachial plexus/);
+  assert.match(await card.textContent(), /Cardiac cycle <i>x<\/i>/, 'titles are shown as text, never as HTML');
+  assert.match(await card.textContent(), /and 2 more/);
+  const link = card.locator('a.notify');
+  assert.match(await link.textContent(), /Notify Asha on WhatsApp/);
+  assert.equal(await link.getAttribute('target'), '_blank');
+  assert.match(await link.getAttribute('rel'), /noopener/);
+  const href = await link.getAttribute('href');
+  assert.ok(href.startsWith('https://wa.me/919876543210?text='), href);
+  const msg = decodeURIComponent(href.split('?text=')[1]);
+  assert.match(msg, /^Hi Asha, a gentle reminder/);
+  assert.match(msg, /1\. Anatomy: Brachial plexus/);
+  assert.match(msg, /2\. Physiology: Cardiac cycle <i>x<\/i>/);
+  assert.match(msg, /and 2 more/);
+  // Pending sits above the progress numbers so it is seen first.
+  const order = await page.$$eval('main > *', (els) => els.map((e) => e.querySelector('h2')?.id || e.className));
+  assert.ok(order.indexOf('h-pending') >= 0 && order.indexOf('h-pending') < order.indexOf('h-overall'));
+  await ctx.close();
+});
+
+await test('viewer page: without a shared number WhatsApp lets the viewer pick the contact; nothing pending means no Notify', async () => {
+  const noPhone = await openViewer({ ...SNAP, phone: '' });
+  assert.ok((await noPhone.page.getAttribute('a.notify', 'href')).startsWith('https://wa.me/?text='));
+  await noPhone.ctx.close();
+  const none = await openViewer({ ...SNAP, pending: [], pendingTotal: 0, status: { code: 'ontrack', behind: 0 } });
+  assert.equal(await none.page.locator('a').count(), 0);
+  assert.equal(await none.page.locator('#h-pending').count(), 0);
+  assert.match(await none.page.textContent('.status'), /On track/);
+  await none.ctx.close();
+});
+
+await test('viewer page: an older summary without the new fields still renders (today shows a percentage from the counts)', async () => {
+  const { today, streakPct, pending, pendingTotal, phone, ...old } = SNAP;
+  const { page, ctx, problems } = await openViewer({ ...old, today: { plannedLectures: 4, doneLectures: 1 } });
+  assert.equal((await page.textContent('#h-today + .num')).trim(), '25%');
+  assert.equal(await page.locator('#h-pending').count(), 0);
+  assert.deepEqual(problems.filter((p) => !p.includes('fake.supabase')), []);
+  await ctx.close();
+});
+
+await test('settings: the owner can save, correct and clear the WhatsApp number used by the Notify button', async () => {
+  const { page, ctx } = await open({}, '#settings');
+  assert.equal(await page.inputValue('#viewerPhone'), '');
+  await page.fill('#viewerPhone', '+91 98765-43210');
+  await page.press('#viewerPhone', 'Tab');
+  assert.match(await allToasts(page), /WhatsApp number saved/);
+  assert.equal((await page.evaluate(() => JSON.parse(localStorage.getItem('mbbsStudyCommandCenter.v1')).viewer.phone)), '919876543210');
+  await page.reload();
+  assert.equal(await page.inputValue('#viewerPhone'), '919876543210', 'remembered');
+  await page.fill('#viewerPhone', '123');
+  await page.press('#viewerPhone', 'Tab');
+  assert.match(await page.textContent('#viewerPhoneHint'), /8 to 15 digits/);
+  assert.equal(await page.getAttribute('#viewerPhone', 'aria-invalid'), 'true');
+  assert.equal((await page.evaluate(() => JSON.parse(localStorage.getItem('mbbsStudyCommandCenter.v1')).viewer.phone)), '919876543210', 'a bad number is not saved');
+  await page.fill('#viewerPhone', '');
+  await page.press('#viewerPhone', 'Tab');
+  assert.equal((await page.evaluate(() => JSON.parse(localStorage.getItem('mbbsStudyCommandCenter.v1')).viewer.phone)), '');
+  assert.equal(await page.getAttribute('#viewerPhone', 'aria-invalid'), null);
+  await ctx.close();
+});
+
+
 await test('viewer link when the database setup was never run: Settings says so plainly and offers the SQL with the steps', async () => {
   const { page, ctx, problems } = await openSynced({ local: null, cloud: null, noViewerTable: true, hash: '#settings' });
   await page.waitForFunction(() => /One-time setup is missing/.test(document.querySelector('#viewerState').textContent));
@@ -1698,9 +1784,9 @@ await test('the Share progress button is hidden when cloud sync is not set up', 
 const { generatePlan: genForTest } = await import('../../js/planner.js');
 
 /** Saved state with fast playback (so the full library fits by 31 Dec) and an optional plan made on an earlier day. */
-function seededState({ planOn } = {}) {
+function seededState({ planOn, speed = 2 } = {}) {
   const st = freshForTest();
-  st.settings = { ...st.settings, speed: 2 };
+  st.settings = { ...st.settings, speed };
   if (planOn) {
     const r = genForTest(st.tasks, st.planConfig, st.settings, new Date(), { today: planOn });
     st.tasks = r.tasks; st.backlog = r.backlog; st.planMeta = r.meta; st.version = 2;
@@ -1718,7 +1804,7 @@ const sliderVal = (page, id) => page.$eval(id, (e) => Number(e.value));
 
 await test('plan tuner: the two sliders are linked (hours up -> finish earlier, date earlier -> hours up) and say when it is impossible', async () => {
   const { page, ctx, problems } = await openTuner(seededState());
-  assert.match(await page.textContent('#tuneVerdict'), /you finish by/);
+  assert.match(await page.textContent('#tuneVerdict'), /(you finish by|you need about)/);
   await page.fill('#tuneHours', '2.5');
   const endAt25 = await sliderVal(page, '#tuneEnd');
   await page.fill('#tuneHours', '3.25');
@@ -1732,9 +1818,29 @@ await test('plan tuner: the two sliders are linked (hours up -> finish earlier, 
   assert.ok(h60 >= h70, 'an earlier date needs at least as many hours');
   await page.fill('#tuneEnd', '10');
   assert.equal(await sliderVal(page, '#tuneHours'), await page.$eval('#tuneHours', (e) => Number(e.max)), 'pinned at the most the evening allows');
-  assert.match(await page.textContent('#tuneVerdict'), /does not finish by/);
+  assert.match(await page.textContent('#tuneVerdict'), /is not enough to finish by/);
   assert.ok(await page.$eval('#tuneVerdict', (e) => e.classList.contains('is-bad')));
   assert.deepEqual(problems, []);
+  await ctx.close();
+});
+
+
+await test('plan tuner: hours are not capped by the evening window; the estimate is shown, warned about, and applied as asked', async () => {
+  const { page, ctx } = await openTuner(seededState({ speed: 1.5 }));
+  const windowH = 3.25;
+  await page.fill('#tuneEnd', '45'); // about 28 Nov
+  const need = await sliderVal(page, '#tuneHours');
+  assert.ok(need > windowH, `estimated need ${need} h is shown, not clipped to ${windowH} h`);
+  assert.ok(await page.$eval('#tuneVerdict', (e) => e.classList.contains('is-warn')));
+  assert.match(await page.textContent('#tuneVerdict'), /you need about [\d.]+ focused hours each weekday/);
+  assert.match(await page.textContent('#tuneVerdict'), /more than fits between your evening start and bedtime/);
+  assert.match(await page.textContent('#tuneHoursOut'), /your evening fits 3\.25 h/);
+  assert.equal(await page.$eval('#tuneHours', (e) => Number(e.max)), 12);
+  await page.click('#tuneApply');
+  assert.match(await allToasts(page), /Plan rebuilt: everything fits by/);
+  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('mbbsStudyCommandCenter.v1')));
+  assert.equal(saved.settings.studyHours, need, 'the plan uses exactly the hours the tuner estimated');
+  assert.equal(saved.backlog.length, 0);
   await ctx.close();
 });
 
@@ -1832,6 +1938,22 @@ await test('plan tuner: mobile (375px) has no horizontal scroll and every contro
   const v = await t.page.evaluate(async () => (await window.axe.run(document.getElementById('tuner'), { runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'best-practice'] } })).violations.map((x) => `${x.id}: ${x.nodes.length}`));
   assert.deepEqual(v, []);
   await t.ctx.close();
+});
+
+
+await test('a rebuild that moves missed lectures forward remembers the missed hours (so that day is not counted as complete)', async () => {
+  const { page, ctx } = await openTuner(seededState({ planOn: '2026-10-05' }));
+  const before = await page.evaluate(() => JSON.parse(localStorage.getItem('mbbsStudyCommandCenter.v1')).missLog);
+  assert.deepEqual(before, {}, 'nothing logged yet');
+  await page.click('#catchup button');
+  await page.waitForSelector('#toasts .toast');
+  const after = await page.evaluate(() => JSON.parse(localStorage.getItem('mbbsStudyCommandCenter.v1')).missLog);
+  const days = Object.keys(after).sort();
+  assert.ok(days.length >= 2 && days.every((d) => d >= '2026-10-12' && d < '2026-10-14'), `missed days: ${days.join(', ')}`);
+  assert.ok(Object.values(after).every((h) => h > 0));
+  await page.locator('#toasts .toast', { hasText: 'Plan re-spread' }).getByRole('button', { name: 'Undo' }).click();
+  assert.deepEqual(await page.evaluate(() => JSON.parse(localStorage.getItem('mbbsStudyCommandCenter.v1')).missLog), {}, 'Undo also removes the log');
+  await ctx.close();
 });
 
 // ---------------------------------------------------------------------------------------------
