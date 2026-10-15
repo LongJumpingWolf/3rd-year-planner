@@ -1,4 +1,4 @@
--- Run once in the Supabase SQL editor (after schema.sql). Adds the viewer link.
+-- Run in the Supabase SQL editor (after schema.sql). Adds the viewer link. Safe to run again.
 -- Viewer link: a numbers-only summary that anyone holding the secret token can read (no sign-in needed).
 -- The summary is a separate row, so the viewer can never reach user_state (your full planner data).
 create table if not exists public.viewer_share (
@@ -11,9 +11,13 @@ create table if not exists public.viewer_share (
 
 alter table public.viewer_share enable row level security;
 
+drop policy if exists "own share: read" on public.viewer_share;
 create policy "own share: read"   on public.viewer_share for select using (auth.uid() = user_id);
+drop policy if exists "own share: insert" on public.viewer_share;
 create policy "own share: insert" on public.viewer_share for insert with check (auth.uid() = user_id);
+drop policy if exists "own share: update" on public.viewer_share;
 create policy "own share: update" on public.viewer_share for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
+drop policy if exists "own share: delete" on public.viewer_share;
 create policy "own share: delete" on public.viewer_share for delete using (auth.uid() = user_id);
 
 -- The only door for viewers: look up one summary by its token.

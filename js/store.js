@@ -19,7 +19,7 @@ export function freshState() {
   return {
     tasks: freshTasks(),
     settings: { ...DEFAULT_SETTINGS },
-    planConfig: { ...DEFAULT_PLAN_CONFIG, exceptions: {} },
+    planConfig: { ...DEFAULT_PLAN_CONFIG, exceptions: {}, groups: null, asleep: [] },
     version: SCHEMA_VERSION,
     backlog: [],
     planMeta: null,
@@ -97,7 +97,7 @@ export function sanitizeState(raw) {
   const planConfig = { ...base.planConfig };
   for (const k of Object.keys(DEFAULT_PLAN_CONFIG)) {
     const v = raw.planConfig?.[k];
-    if (k === 'exceptions') continue;
+    if (k === 'exceptions' || k === 'groups' || k === 'asleep') continue;
     if (typeof DEFAULT_PLAN_CONFIG[k] === 'number') planConfig[k] = num(v, DEFAULT_PLAN_CONFIG[k]);
     else if (isValidISO(v)) planConfig[k] = v;
   }
@@ -108,6 +108,11 @@ export function sanitizeState(raw) {
     planConfig.weekendLight = Math.round((total / 3) * 2) / 2;
     planConfig.weekendFocus = total - planConfig.weekendLight;
   }
+  // Study order (phases of subjects studied side by side) and parked subjects.
+  const groups = (Array.isArray(raw.planConfig?.groups) ? raw.planConfig.groups : [])
+    .filter(Array.isArray).map((g) => g.map((x) => String(x))).filter((g) => g.length);
+  planConfig.groups = groups.length ? groups : null;
+  planConfig.asleep = Array.isArray(raw.planConfig?.asleep) ? [...new Set(raw.planConfig.asleep.map((x) => String(x)))] : [];
   planConfig.exceptions = {};
   for (const [iso, e] of Object.entries(raw.planConfig?.exceptions && typeof raw.planConfig.exceptions === 'object' ? raw.planConfig.exceptions : {})) {
     if (!isValidISO(iso) || !e || typeof e !== 'object') continue;

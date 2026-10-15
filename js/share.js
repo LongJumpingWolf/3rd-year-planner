@@ -11,6 +11,31 @@ let lastSyncedAt = null;
 let timer = null;
 const listeners = new Set();
 
+/**
+ * Turn a Supabase / network error into something a person can act on.
+ *  kind: 'setup' (table or function missing: viewer.sql was not run), 'permission', 'network' or 'other'
+ */
+export function explainShareError(e) {
+  const code = String(e?.code || '');
+  const msg = String(e?.message || e || '');
+  if (['PGRST205', 'PGRST202', '42P01', '42883'].includes(code) || /could not find the (table|function)|does not exist/i.test(msg)) {
+    return { kind: 'setup', message: 'One-time setup is missing: the viewer link table does not exist in your Supabase project yet.' };
+  }
+  if (code === '42501' || /permission denied|row-level security/i.test(msg)) {
+    return { kind: 'permission', message: 'Supabase refused the request. Sign out and in again, and check that supabase/viewer.sql ran without errors.' };
+  }
+  if (e instanceof TypeError || /failed to fetch|network|offline/i.test(msg) || (typeof navigator !== 'undefined' && navigator.onLine === false)) {
+    return { kind: 'network', message: 'No connection to Supabase. Check your internet and try again.' };
+  }
+  return { kind: 'other', message: `Could not update the viewer link${msg ? ` (${msg.slice(0, 120)})` : ''}.` };
+}
+
+let problem = null;
+const problemListeners = new Set();
+export const getShareProblem = () => problem;
+export function onShareProblem(fn) { problemListeners.add(fn); fn(problem); return () => problemListeners.delete(fn); }
+function setProblem(p) { problem = p; problemListeners.forEach((fn) => fn(problem)); }
+
 export const getShare = () => share;
 export function onShare(fn) { listeners.add(fn); fn(share); return () => listeners.delete(fn); }
 function setShare(next) { share = next; listeners.forEach((fn) => fn(share)); }
@@ -43,7 +68,8 @@ async function loadShare() {
 export async function publishSnapshot() {
   const { sb, user } = getContext();
   if (!sb || !user || !share?.enabled) return;
-  await sb.from(TABLE).update({ snapshot: snapshotNow(), updated_at: new Date().toISOString() }).eq('user_id', user.id);
+  const { error } = await sb.from(TABLE).update({ snapshot: snapshotNow(), updated_at: new Date().toISOString() }).eq('user_id', user.id);
+  if (error) throw error;
 }
 
 async function write(fields) {
@@ -89,7 +115,10 @@ export function initShare() {
       try {
         if (loadedFor !== getContext().user?.id) await loadShare();
         await publishSnapshot();
-      } catch { /* offline or table missing: the link simply keeps its last summary */ }
+        setProblem(null);
+      } catch (e) {
+        setProblem(explainShareError(e)); // offline or the table is missing: the link keeps its last summary and the Settings panel says why
+      }
     }, 800);
   });
 }

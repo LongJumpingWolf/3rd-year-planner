@@ -45,6 +45,10 @@
 
   <main id="main" tabindex="-1">
     <noscript><p class="notice">This app needs JavaScript. Please enable it and reload.</p></noscript>
+    <div class="notice catchup" id="catchup" role="status" hidden>
+      <span id="catchupText"></span>
+      <button type="button" class="primary" data-action="respread">Re-spread from today</button>
+    </div>
 
     <!-- DASHBOARD -->
     <section class="page" id="page-dashboard" aria-labelledby="h-dashboard" hidden>
@@ -159,6 +163,41 @@
       </div>
       <p class="week-label" id="weekLabel" aria-live="polite"></p>
       <div class="week-grid" id="weekGrid"></div>
+
+      <section class="panel tuner" id="tuner" aria-labelledby="h-tuner">
+        <h3 id="h-tuner">Plan tuner</h3>
+        <p class="small muted">Decide how fast to finish and in what order. The finish date and the daily hours are linked: move one slider and the other follows. Nothing changes in your plan until you press <strong>Apply and rebuild plan</strong>.</p>
+        <p class="small" id="tunerWork" role="status"></p>
+        <div class="tuner-sliders">
+          <div class="field">
+            <label for="tuneEnd">Finish by <output id="tuneEndOut" for="tuneEnd"></output></label>
+            <input type="range" id="tuneEnd" min="1" max="200" step="1" value="60">
+          </div>
+          <div class="field">
+            <label for="tuneHours">Focused hours per weekday <output id="tuneHoursOut" for="tuneHours"></output></label>
+            <input type="range" id="tuneHours" min="0.5" max="4" step="0.25" value="2.5">
+          </div>
+        </div>
+        <p class="notice" id="tuneVerdict" role="status"></p>
+
+        <h4 class="sub-h">Study order</h4>
+        <p class="small muted">Subjects in the same phase are studied side by side, so each day mixes them and they finish together. Phases run one after another. A subject set to <em>Asleep</em> stays in your library but is left out of the plan and the daily timetable until you wake it.</p>
+        <div class="row presets" role="group" aria-label="Quick study orders">
+          <button type="button" data-preset="sequential">One by one</button>
+          <button type="button" data-preset="pairs">Two at a time</button>
+          <button type="button" data-preset="three-one">Three together, then one</button>
+          <button type="button" data-preset="one-three">One, then three together</button>
+          <button type="button" data-preset="together">All together</button>
+        </div>
+        <ul class="phase-list" id="phaseTable" aria-label="Study order: choose a phase for each subject, or put it to sleep"></ul>
+        <div class="row actions">
+          <button type="button" class="primary" id="tuneApply">Apply and rebuild plan</button>
+          <button type="button" id="tuneReset">Discard changes</button>
+        </div>
+        <p class="error-text" id="tuneErr" role="alert" hidden></p>
+        <h4 class="sub-h">Current plan</h4>
+        <ol class="phase-summary" id="phaseSummary"></ol>
+      </section>
 
       <details class="panel scheduler" id="schedulerPanel" open>
         <summary><strong>Automatic master scheduler</strong><span class="muted small"> — build or rebuild the dated plan</span></summary>
@@ -369,6 +408,7 @@
           <button type="button" class="primary" id="viewerCreate">Create viewer link</button>
           <button type="button" id="viewerNew" hidden>Make a new link…</button>
           <button type="button" id="viewerOff" hidden>Turn off…</button>
+          <button type="button" id="viewerSetup" hidden>Show one-time setup steps</button>
         </div>
       </section>
       <section class="panel danger-zone" aria-labelledby="h-danger">

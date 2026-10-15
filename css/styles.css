@@ -425,6 +425,21 @@ fieldset.field > legend { margin-bottom: 4px; }
 
 @media (max-width: 900px) { .blocks-grid { grid-template-columns: 1fr; } }
 
+/* ---------- plan tuner + catch-up banner ---------- */
+.tuner-sliders { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); gap: 18px; margin: 10px 0 6px; }
+.tuner-sliders .field { min-width: 0; }
+.tuner-sliders label { display: block; overflow-wrap: anywhere; }
+.phase-list { list-style: none; margin: 8px 0 12px; padding: 0; display: grid; gap: 8px; }
+.phase-list li { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px 16px; padding: 8px 12px; background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px; }
+.phase-list li > div { min-width: 0; }
+.tuner-sliders input[type=range] { width: 100%; min-height: 32px; accent-color: var(--accent); }
+.tuner-sliders output { display: block; margin-top: 2px; font-weight: 600; color: var(--ink); }
+#tuneVerdict.is-bad { border-color: var(--bad); background: var(--bad-soft); color: var(--bad); }
+.presets { gap: 8px; margin: 6px 0 10px; }
+.phase-summary { margin: 6px 0 0; padding-left: 1.3em; display: grid; gap: 4px; }
+.catchup { display: flex; gap: 12px; align-items: center; justify-content: space-between; flex-wrap: wrap; margin: 0 0 14px; }
+.catchup[hidden] { display: none; }
+.steps { margin: 0; padding-left: 1.3em; display: grid; gap: 6px; }
 /* ---------- day notes ---------- */
 .extras { list-style: none; margin: 0 0 10px; padding: 0; display: grid; gap: 6px; }
 .extras li { display: flex; justify-content: space-between; gap: 12px; align-items: center; padding: 6px 10px; background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px; }

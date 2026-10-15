@@ -46,6 +46,7 @@ export function renderTasks() {
   const ids = new Set(state.tasks.map((t) => t.id));
   [...selection].forEach((id) => { if (!ids.has(id)) selection.delete(id); });
 
+  const asleepSet = new Set(state.planConfig.asleep || []);
   const arr = filteredTasks();
   $('#taskCount').textContent = `Showing ${arr.length} of ${libraryTasks().length} entries`;
   $('#taskTable').innerHTML = arr.map((t) => `<tr class="${t.done ? 'is-done' : ''}">
@@ -56,7 +57,7 @@ export function renderTasks() {
     <td>${fmtTime(t.durationSec)}</td>
     <td>${fmtTime(taskPlannedSec(t, state.settings))}</td>
     <td>${t.scheduledDate ? `${esc(fmtDate(t.scheduledDate, { day: 'numeric', month: 'short', year: 'numeric' }))}<br><span class="muted small">${esc(BLOCK_INFO[blockOf(t)].name)}</span>` : '<span class="muted">—</span>'}</td>
-    <td>${t.done ? '<span class="tag done">Done</span>' : '<span class="tag">To do</span>'}</td>
+    <td>${t.done ? '<span class="tag done">Done</span>' : asleepSet.has(t.subject) ? '<span class="tag">Asleep</span>' : '<span class="tag">To do</span>'}</td>
     <td><div class="row">
       <button type="button" class="small" ${actionAttrs('toggle-btn', t.id, 'tbl')} aria-label="${t.done ? 'Undo' : 'Done'}: ${esc(t.title)}">${t.done ? 'Undo' : 'Done'}</button>
       ${t.generated ? '' : `<button type="button" class="small" ${actionAttrs('move', t.id, 'tbl')} aria-label="Move: ${esc(t.title)}">Move</button>

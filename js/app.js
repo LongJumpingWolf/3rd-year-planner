@@ -6,6 +6,8 @@ import { initCloud } from './cloud.js';
 import { initShare } from './share.js';
 import { initAccount } from './ui/account.js';
 import { initViewerLink } from './ui/viewerLink.js';
+import { initTuner } from './ui/tuner.js';
+import { renderCatchup } from './ui/catchup.js';
 import { renderAudit } from './ui/audit.js';
 import { renderCalendar, shiftWeek } from './ui/calendar.js';
 import { renderDashboard } from './ui/dashboard.js';
@@ -56,6 +58,7 @@ function showPage(name, { moveFocus = true, arg } = {}) {
   });
   document.title = `${PAGES[current].title} · MBBS Study Command Center`;
   PAGES[current].render();
+  renderCatchup();
   if (moveFocus) {
     // Move focus to the page heading so keyboard and screen-reader users land at the top of the new view.
     const h = $(`#h-${current}`);
@@ -89,7 +92,7 @@ $('.skip-link').addEventListener('click', (e) => {
 });
 
 function rerender() {
-  renderKeepingFocus(() => PAGES[current].render());
+  renderKeepingFocus(() => { PAGES[current].render(); renderCatchup(); });
 }
 subscribe(rerender);
 
@@ -115,6 +118,7 @@ document.addEventListener('click', (e) => {
       actions.removeExtra(iso, Number(i));
       break;
     }
+    case 'respread': actions.respreadFromToday(); break;
     case 'fix-overflow': actions.fixOverflowAction(id, el.dataset.block); break;
     default: break;
   }
@@ -334,6 +338,7 @@ if (!storageAvailable()) {
   toast('Your browser is blocking local storage, so progress will not be saved. Use Export backup to keep a copy.', { type: 'warn', ms: 0 });
 }
 
+initTuner();
 initAccount();
 initViewerLink();
 initShare();

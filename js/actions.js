@@ -1,7 +1,7 @@
 // User-level operations that change state. Each one validates input, commits, and tells the user what happened.
 // The light / focused distinction is preserved by delegating to taskOps.js and planner.js.
 import {
-  BLOCK_INFO, blockOf, dayStats, generatePlan, intensityOf, isCompatible, isSchedulable, recommendedBlock,
+  BLOCK_INFO, blockOf, dayStats, generatePlan, intensityOf, isCompatible, isSchedulable, isVideo, lectureKey, recommendedBlock,
   simulate, taskPlannedSec, validatePlanConfig, validateSettingsTimes, weekdayCapacity,
 } from './planner.js';
 import { assignTask, autoPlaceTask, fixOverflow, reclassifyTask, setDayException, setDuration, splitInState, unscheduleTask } from './taskOps.js';
@@ -412,7 +412,7 @@ export async function runGenerate(formValues, { silent = false, undoable = true 
   const error = validatePlanConfig(cfg);
   if (error) return { error };
   const hasManual = state.tasks.some((t) => t.pinned && !t.done);
-  const res = generatePlan(state.tasks, cfg, state.settings);
+  const res = generatePlan(state.tasks, cfg, state.settings, new Date(), { today: todayISO() });
   if (res.error) return { error: res.error };
   const snap = JSON.stringify(state);
   state.planConfig = cfg;
@@ -428,6 +428,60 @@ export async function runGenerate(formValues, { silent = false, undoable = true 
     });
   }
   return { ok: true };
+}
+
+/** Open, non-paused lectures that were planned for a day that is already over (and are not pinned, so a rebuild can move them). */
+export function overdueLectures(tasks = state.tasks, planConfig = state.planConfig, today = todayISO()) {
+  const asleep = new Set(planConfig.asleep || []);
+  return tasks.filter((t) => isVideo(t) && !t.done && !t.pinned && !asleep.has(t.subject) && t.scheduledDate && t.scheduledDate < today);
+}
+
+/** Re-spread everything still open over the days that are left, so missed days are made up evenly instead of piling up. */
+export async function respreadFromToday() {
+  const n = new Set(overdueLectures().map(lectureKey)).size;
+  const before = JSON.stringify(state);
+  const res = await runGenerate({}, { silent: true });
+  if (res.error) { toast(res.error, { type: 'error', ms: 8000 }); return res; }
+  lastPlanSnapshot = before;
+  const m = state.planMeta;
+  toast(`Plan re-spread from today${n ? `: ${n} missed lecture${n === 1 ? ' was' : 's were'} moved forward` : ''}. ${m.feasible ? 'Everything still fits by the target.' : 'Not everything fits by the target; see the Plan tuner.'}`, {
+    type: m.feasible ? 'ok' : 'warn', ms: 9000,
+    action: { label: 'Undo', run: () => undoLastPlan() },
+  });
+  return res;
+}
+
+let lastPlanSnapshot = null;
+export function undoLastPlan() {
+  if (!lastPlanSnapshot) return;
+  replaceState(JSON.parse(lastPlanSnapshot));
+  lastPlanSnapshot = null;
+  commit();
+  toast('Previous plan restored.');
+}
+
+/**
+ * Apply the Plan tuner: study order (phases), parked subjects, weekday focused hours and the finish date, then rebuild.
+ * Returns { error } or { ok, meta }.
+ */
+export async function applyPlanTuner({ groups, asleep, studyHours, end }) {
+  const today = todayISO();
+  if (!isValidISO(end)) return { error: 'Pick a valid finish date.' };
+  if (end < today) return { error: 'The finish date is already in the past.' };
+  const hours = Number(studyHours);
+  if (!Number.isFinite(hours) || hours < 0 || hours > 12) return { error: 'Focused hours per weekday must be between 0 and 12.' };
+  const before = JSON.stringify(state);
+  const backstop = state.planConfig.backstop < end ? end : state.planConfig.backstop;
+  const prevSettings = state.settings;
+  state.settings = { ...state.settings, studyHours: hours };
+  const res = await runGenerate({ groups: groups && groups.length ? groups : null, asleep: [...asleep], end, backstop }, { silent: true });
+  if (res.error) { state.settings = prevSettings; return res; }
+  lastPlanSnapshot = before;
+  const m = state.planMeta;
+  toast(m.feasible ? `Plan rebuilt: everything fits by ${fmtDate(end, { day: 'numeric', month: 'long' })}.` : `Plan rebuilt, but ${m.afterTarget + state.backlog.length} lecture${m.afterTarget + state.backlog.length === 1 ? '' : 's'} do not fit by ${fmtDate(end, { day: 'numeric', month: 'long' })}. Move the date later or raise the hours.`, {
+    type: m.feasible ? 'ok' : 'warn', ms: 9000, action: { label: 'Undo', run: () => undoLastPlan() },
+  });
+  return { ok: true, meta: m };
 }
 
 /**

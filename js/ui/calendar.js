@@ -4,6 +4,7 @@ import { addDays, dateISO, esc, fmtDate, fmtDur, fromISO, isValidISO, weekStart 
 import { compactBlockHTML } from './blocks.js';
 import { $ } from './dom.js';
 import { taskCardHTML } from './taskCard.js';
+import { renderTuner } from './tuner.js';
 
 export function currentWeekStart() {
   const inp = $('#weekDate');
@@ -43,6 +44,7 @@ export function renderCalendar() {
     ? rows.map(({ t, reason }) => taskCardHTML(t, 'back', { reason })).join('')
     : '<div class="empty">Nothing in the backlog. Everything schedulable has a date.</div>';
 
+  renderTuner();
   renderPlanForm();
   renderPlanReport();
   renderWeeklyLoad();
@@ -62,8 +64,9 @@ export function renderPlanForm() {
 
 export function renderPlanReport() {
   const box = $('#planReport');
-  const stats = lectureStats(state.tasks);
-  const vids = state.tasks.filter((t) => isVideo(t) && !t.done);
+  const stats = lectureStats(state.tasks, state.planConfig.asleep);
+  const asleep = new Set(state.planConfig.asleep || []);
+  const vids = state.tasks.filter((t) => isVideo(t) && !t.done && !asleep.has(t.subject));
   const hours = vids.reduce((s, t) => s + taskPlannedSec(t, state.settings), 0) / 3600;
   const placedH = vids.filter((t) => t.scheduledDate).reduce((s, t) => s + taskPlannedSec(t, state.settings), 0) / 3600;
   const gen = { light: 0, focus: 0 };
@@ -74,12 +77,16 @@ export function renderPlanReport() {
     <div class="kpi"><span class="small muted">Lecture study time</span><strong>${hours.toFixed(1)} h</strong></div>
     <div class="kpi"><span class="small muted">Placed in Focused work</span><strong>${placedH.toFixed(1)} h</strong></div>
     <div class="kpi ${un ? 'bad' : 'good'}"><span class="small muted">Unscheduled</span><strong>${un}</strong></div>
+    ${stats.asleep ? `<div class="kpi"><span class="small muted">Asleep (not planned)</span><strong>${stats.asleep}</strong></div>` : ''}
     <div class="kpi"><span class="small muted">Light prep &amp; fixed blocks</span><strong>${gen.light.toFixed(1)} h light · ${gen.focus.toFixed(1)} h focused</strong></div>`;
   if (state.planMeta) {
     const m = state.planMeta;
+    const late = m.afterTarget || 0;
     const note = un
-      ? `${un} lecture${un === 1 ? '' : 's'} do not fit before ${m.hard} (${m.overflow?.focus ?? 0} focused-work, ${m.overflow?.light ?? 0} light-work). Options: use “Next free slot” on a backlog item, raise the focused hours in Settings, move the hard backstop, or add capacity on a day with “Day settings”.`
-      : 'All incomplete lectures fit under the current assumptions.';
+      ? `${un} lecture${un === 1 ? '' : 's'} do not fit before ${m.hard} (${m.overflow?.focus ?? 0} focused-work, ${m.overflow?.light ?? 0} light-work). Use the Plan tuner above: choose a later finish date, more focused hours, faster playback or put a subject to sleep.`
+      : late
+        ? `${late} lecture${late === 1 ? '' : 's'} only fit after your target finish (${m.end}). Use the Plan tuner above to see what would make everything fit.`
+        : 'Every awake lecture fits by your target finish, spread evenly across the days.';
     box.insertAdjacentHTML('beforeend', `<p class="small ${un ? 'error-text' : 'muted'}" style="flex-basis:100%;margin:0">${esc(note)}${m.splitLectures ? ` ${m.splitLectures} lecture${m.splitLectures === 1 ? ' was' : 's were'} split into sessions.` : ''}</p>`);
   } else {
     box.insertAdjacentHTML('beforeend', '<p class="small muted" style="flex-basis:100%;margin:0">No plan yet. Choose your dates above and generate one.</p>');

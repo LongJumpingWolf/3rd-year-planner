@@ -8,8 +8,9 @@ export const SNAPSHOT_VERSION = 1;
 const BEHIND_SLIGHT = 3;
 
 /** 'done' | 'notstarted' | 'ontrack' | 'slightly' | 'behind' plus the lectures that were planned before today but are still open. */
-export function trackStatus(tasks, todayIso, startIso) {
-  const lectures = tasks.filter(isVideo);
+export function trackStatus(tasks, todayIso, startIso, asleepList = []) {
+  const asleep = new Set(asleepList);
+  const lectures = tasks.filter((t) => isVideo(t) && !asleep.has(t.subject)); // paused subjects are not part of the plan
   if (lectures.length && lectures.every((t) => t.done)) return { code: 'done', behind: 0 };
   if (startIso && todayIso < startIso) return { code: 'notstarted', behind: 0 };
   const behind = lectures.filter((t) => !t.done && t.scheduledDate && t.scheduledDate < todayIso).length;
@@ -25,7 +26,8 @@ export function buildSnapshot(state, todayIso, { name = '', now = new Date() } =
   const lectures = state.tasks.filter(isVideo);
   const done = lectures.filter((t) => t.done).length;
   const total = lectures.length;
-  const status = trackStatus(state.tasks, todayIso, state.planConfig.start);
+  const asleep = state.planConfig.asleep || [];
+  const status = trackStatus(state.tasks, todayIso, state.planConfig.start, asleep);
   const plannedToday = lectures.filter((t) => t.scheduledDate === todayIso).length;
   const doneToday = lectures.filter((t) => t.done && t.doneAt === todayIso).length;
 
@@ -49,7 +51,7 @@ export function buildSnapshot(state, todayIso, { name = '', now = new Date() } =
     today: { plannedLectures: plannedToday, doneLectures: doneToday },
     streak: streak(state.tasks, todayIso),
     week: recentActivity(state.tasks, todayIso, 7),
-    subjects: subjectProgress(state.tasks).map((s) => ({ subject: s.subject, done: s.done, total: s.total, pct: s.pct })),
+    subjects: subjectProgress(state.tasks).map((s) => ({ subject: s.subject, done: s.done, total: s.total, pct: s.pct, ...(asleep.includes(s.subject) && s.done < s.total ? { paused: true } : {}) })),
     target: { date: state.planConfig.end, daysLeft: daysUntil(todayIso, state.planConfig.end) },
     extras,
   };

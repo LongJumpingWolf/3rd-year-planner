@@ -26,6 +26,12 @@ export function hasLocalProgress(state, libraryTaskCount) {
 }
 
 export function describeState(s) {
-  const lectures = s.tasks.filter((t) => t.type === 'video');
-  return `${lectures.filter((t) => t.done).length} of ${lectures.length} lectures done`;
+  // Split sessions of one lecture count once, and the lecture is done when every session is.
+  const byLecture = new Map();
+  for (const t of s.tasks) {
+    if (t.type !== 'video') continue;
+    const k = t.parentId || t.id;
+    byLecture.set(k, (byLecture.get(k) ?? true) && !!t.done);
+  }
+  return `${[...byLecture.values()].filter(Boolean).length} of ${byLecture.size} lectures done`;
 }

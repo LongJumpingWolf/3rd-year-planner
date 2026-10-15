@@ -80,6 +80,7 @@ h2 { font-size: 1.15rem; margin: 0 0 12px; }
 .subj { display: grid; gap: 14px; margin: 0; padding: 0; list-style: none; }
 .subj .head { display: flex; justify-content: space-between; gap: 12px; font-size: 1.05rem; margin-bottom: 6px; }
 .subj .head b { white-space: nowrap; }
+.subj .paused { color: var(--muted); font-size: .8rem; }
 .subj .bar { height: 14px; }
 
 .days { display: grid; gap: 14px; margin: 0; padding: 0; list-style: none; }

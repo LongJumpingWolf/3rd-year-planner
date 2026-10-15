@@ -35,7 +35,7 @@ js/share.js           viewer-link management; js/viewerSnapshot.js builds the nu
 view.html, js/viewer.js, css/viewer.css   the read-only big-print viewer page
 js/utils.js           dates, formatting, CSV
 js/data.js            embedded task library (377 lectures)
-js/ui/*               one view module per page + dialogs/toasts/helpers
+js/ui/*               one view module per page + dialogs/toasts/helpers (tuner.js = Plan tuner)
 server.js             zero-dependency static server
 tests/unit, tests/e2e automated tests
 legacy/               the original single-file version, kept for reference
@@ -66,6 +66,22 @@ The Dashboard's **Share progress** button (or Settings > **Viewer link**) create
 
 On screens wide enough for the Daily view's two columns (over 900 px), the app opens on the **Daily view** (Light | Focused side by side). Narrower screens open on the Dashboard. A link with a page in it (for example `#dashboard`) always wins.
 
+## Plan tuner (finish date, daily hours, study order)
+
+On the **Weekly calendar** page, the **Plan tuner** builds a plan that finishes in the time you choose:
+
+- **Two linked sliders.** *Finish by* and *Focused hours per weekday* are tied together. Drag the date earlier and the hours rise to what is needed; drag the hours up and the finish date comes forward. If a date is impossible (even at the most your evening allows) it says so instead of promising it. Nothing changes until you press **Apply and rebuild plan** (Undo is offered).
+- **Even pace.** The remaining lectures are spread over the free focused time from today to the finish date in proportion to each day's capacity, so the load is level: not packed into the early days, not a sprint at the end, and the plan reaches the finish date honestly. If everything cannot fit, the plan shows how many lectures spill over and by how much, rather than pretending.
+- **Study order (phases).** Give each subject a phase. Subjects in the same phase are studied side by side (interleaved so they advance at the same rate); phases run one after another. Presets: one by one, two at a time, three then one, one then three, all together. Change the order mid-way and the not-yet-done lectures are simply re-planned forward.
+- **Asleep subjects.** Set a subject to *Asleep* to keep it in the library but leave it out of the plan, the daily timetable and the hours needed. Wake it later by giving it a phase.
+- **Missed days.** Planning always starts from today, so days that are over never receive new work and a change of strategy never turns into "backlog". When lectures planned for earlier days are still open, a banner offers **Re-spread from today**, which moves them forward evenly (Undo is offered).
+
+Notes: weekend focused hours come from the scheduler form below; the weekday slider is capped at what fits between your evening start and bedtime. Automatic splitting of a lecture into sessions uses gaps of at least 20 minutes (15 when the schedule is very tight).
+
+## Viewer link troubleshooting
+
+If **Create viewer link** or **Share progress** says "One-time setup is missing", the viewer table does not exist in your Supabase project yet. Press **Show setup steps** in the message (or in Settings > Viewer link): it shows the SQL ready to copy and opens your project's SQL editor. Paste, press Run, then try again. The SQL in `supabase/` is safe to run more than once.
+
 ## Dashboard extras
 
 - **Progress by subject**, **study streak** (days in a row with a completed lecture), **countdowns** to the target finish and hard backstop, the **pace** needed to finish on time, and a 7-day activity chart.
@@ -81,7 +97,7 @@ Every day has two separate capacities, shown in the Daily view, the Weekly cards
 - **Light work — College gaps** (default 1 h 30 min per weekday): recall, MCQs, lecture previews, indexing. No clock times, since college gaps vary.
 - **Focused work — Home / evening** (default 2 h 30 min per weekday): lectures and deep study, from 6:30 PM with 10-minute breaks, finishing 15 minutes before bedtime (10:30 PM).
 
-Deep work is never placed in light work because focused work is full; it goes to the next focused slot, is split into sessions (min. 20 min), or is listed in the backlog with the reason. Putting deep work in light work by hand needs an explicit override and is flagged. Each day offers Move (date + block), Edit (runtime, type, deadline, priority), Split, "Move overflow to next free slot", and Day settings (unavailable / custom capacity). Bulk changes have Undo. Weekends use their own capacities (default 2 h light + 4 h focused), DAMS weekends allow only a 30-minute light recap, and the trip is blocked.
+Deep work is never placed in light work because focused work is full; it goes to the next focused slot, is split into sessions (min. 20 min by hand; the scheduler may use 15-minute gaps when time is very tight), or is listed in the backlog with the reason. Putting deep work in light work by hand needs an explicit override and is flagged. Each day offers Move (date + block), Edit (runtime, type, deadline, priority), Split, "Move overflow to next free slot", and Day settings (unavailable / custom capacity). Bulk changes have Undo. Weekends use their own capacities (default 2 h light + 4 h focused), DAMS weekends allow only a 30-minute light recap, and the trip is blocked.
 
 Data saved by the older single-capacity version is migrated automatically on first load (progress, completions and IDs kept; an untouched copy is stored under `mbbsStudyCommandCenter.v1.pre-blocks-backup`).
 

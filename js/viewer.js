@@ -25,6 +25,7 @@ async function fetchSnapshot() {
     body: JSON.stringify({ p_token: token }),
     cache: 'no-store',
   });
+  if (res.status === 404) { const e = new Error('not set up'); e.setup = true; throw e; }
   if (!res.ok) throw new Error(String(res.status));
   return res.json();
 }
@@ -80,7 +81,7 @@ function render(snap) {
     <section class="card" aria-labelledby="h-subj">
       <h2 id="h-subj">Lectures by subject</h2>
       <ul class="subj">
-        ${snap.subjects.map((s) => `<li><div class="head"><span>${esc(s.subject)}</span><b>${s.done} of ${s.total}</b></div>
+        ${snap.subjects.map((s) => `<li><div class="head"><span>${esc(s.subject)}${s.paused ? ' <small class="paused">(paused for now)</small>' : ''}</span><b>${s.done} of ${s.total}</b></div>
           <div class="bar" role="progressbar" aria-label="${esc(s.subject)} lectures completed" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${s.pct}"><span style="width:${s.pct}%"></span></div></li>`).join('')}
       </ul>
     </section>
@@ -116,7 +117,8 @@ async function load() {
     if (!snap.v || !Array.isArray(snap.week) || !Array.isArray(snap.subjects)) { message('Nothing has been shared yet. Please check back in a little while.'); return; }
     last = snap;
     render(snap);
-  } catch {
+  } catch (e) {
+    if (e?.setup) { message('This viewer page is not fully set up yet. Please ask the person who shared it to finish the setup.'); return; }
     if (last) {
       const el = document.getElementById('updated');
       if (el) el.textContent = `Could not refresh. Showing the update from ${agoText(last.updatedAt)}.`;

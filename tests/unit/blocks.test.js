@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { INITIAL_TASKS } from '../../js/data.js';
 import {
   BLOCKS, DEFAULT_PLAN_CONFIG, DEFAULT_SETTINGS, blockOf, dayBlocks, dayStats, fmtClock, generatePlan, intensityOf, isCompatible,
-  lectureStats, taskPlannedSec, usageMap, validateSettingsTimes, weeklyLoad,
+  lectureKey, lectureStats, taskPlannedSec, usageMap, validateSettingsTimes, weeklyLoad,
 } from '../../js/planner.js';
 import { assignTask, autoPlaceTask, fixOverflow, reclassifyTask, setDayException, splitInState, unscheduleTask } from '../../js/taskOps.js';
 import { freshState, sanitizeState } from '../../js/store.js';
@@ -126,7 +126,7 @@ test('4. a lecture too long for any focused block is split into sessions across 
     assert.ok(s.over < 0.001);
     assert.ok(taskPlannedSec(p, settings) >= 20 * 60 - 1, 'never shorter than 20 minutes');
   }
-  assert.deepEqual(lectureStats(res.tasks), { total: 1, done: 0, open: 1, scheduled: 1, unscheduled: 0 });
+  assert.deepEqual(lectureStats(res.tasks), { total: 1, done: 0, open: 1, scheduled: 1, unscheduled: 0, asleep: 0 });
   assert.equal(res.meta.splitLectures, 1);
 });
 
@@ -245,7 +245,7 @@ test('7. regenerating preserves completed work, pinned moves and creates no dupl
   assert.equal(res.tasks.find((t) => t.id === gen.id).done, true, 'completed generated task stays completed');
   const pinned = res.tasks.find((t) => t.id === lectures[4].id);
   assert.equal(pinned.scheduledDate, '2026-10-25');
-  assert.equal(res.tasks.filter((t) => t.type === 'video').length, 377);
+  assert.equal(new Set(res.tasks.filter((t) => t.type === 'video').map(lectureKey)).size, 377, 'every lecture exactly once (split sessions share a key)');
   const again = generatePlan(res.tasks, st.planConfig, st.settings);
   assert.deepEqual(again.tasks.map((t) => [t.id, t.scheduledDate, t.block]).sort(), res.tasks.map((t) => [t.id, t.scheduledDate, t.block]).sort());
 });
@@ -406,7 +406,7 @@ test('existing data is preserved: ids, durations, statuses and completion surviv
   st.tasks[0].done = true;
   st.tasks[0].scheduledDate = '2026-10-12';
   // Fast playback so the whole library fits and nothing gets auto-split (an auto-split lecture is reported as sessions).
-  const res = generatePlan(st.tasks, st.planConfig, { ...st.settings, speed: 2 });
+  const res = generatePlan(st.tasks, st.planConfig, { ...st.settings, speed: 2, studyHours: 3 });
   assert.equal(res.backlog.length, 0);
   for (const orig of INITIAL_TASKS) {
     const t = res.tasks.find((x) => x.id === orig.id);

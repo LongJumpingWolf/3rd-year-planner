@@ -311,12 +311,12 @@ await test('daily view: clearing the date sends the task to the backlog; "Next f
   await dialogGone(page);
   assert.match(await toasts(page).last().textContent(), /backlog/);
   await goto(page, 'calendar');
-  assert.equal(await page.locator('#backlogList .task').count(), 107, '106 that never fit + this one');
+  assert.equal(await page.locator('#backlogList .task').count(), 114, '113 that never fit + this one');
   const card = page.locator('#backlogList .task', { hasText: title });
   assert.match(await card.textContent(), /Manually unscheduled/);
   await card.getByRole('button', { name: /Next free slot/ }).click();
   assert.match(await toasts(page).last().textContent(), /Placed in focused work on/);
-  assert.equal(await page.locator('#backlogList .task').count(), 106);
+  assert.equal(await page.locator('#backlogList .task').count(), 113);
   await ctx.close();
 });
 
@@ -418,7 +418,7 @@ await test('add task: a Light task lands in light work after rebuilding; a Deep 
   await goto(page, 'tasks');
   const mcq = await page.locator('#taskTable tr', { hasText: 'My MCQ set' }).textContent();
   assert.match(mcq, /Light work/);
-  assert.match(mcq, /12 Oct 2026/, 'user light tasks are placed before generated prep');
+  assert.match(mcq, /14 Oct 2026/, 'user light tasks are placed before generated prep (the plan now starts from today, 14 Oct)');
   await goto(page, 'calendar');
   const card = page.locator('#backlogList .task', { hasText: 'My deep lecture' });
   assert.equal(await card.count(), 1, 'focused work is full, so the new lecture is reported, not hidden');
@@ -451,15 +451,15 @@ await test('scheduler form: validation messages, success toast, regenerate keeps
   await dialogGone(page);
   await goto(page, 'calendar');
   await page.click('#generatePlan');
-  assert.match(await toasts(page).last().textContent(), /Plan generated: 271 of 377 lectures placed, 1 lecture split into sessions \(your manual moves were kept\)\. 106 tasks did not fit \(106 focused, 0 light\)/);
+  assert.match(await toasts(page).last().textContent(), /Plan generated: 263 of 377 lectures placed, 1 lecture split into sessions \(your manual moves were kept\)\. 114 tasks did not fit \(114 focused, 0 light\)/);
   await page.goto(`${BASE}/#day/2026-10-17`);
   await page.waitForSelector('#page-day:not([hidden])');
   assert.equal(await focusBlock(page).locator('.btask', { hasText: title }).count(), 1);
   await goto(page, 'calendar');
   const rep = await metric(page, '#planReport');
-  assert.match(rep, /271 \/ 377/);
-  assert.match(rep, /106 lectures do not fit/);
-  assert.match(rep, /Next free slot/);
+  assert.match(rep, /263 \/ 377/);
+  assert.match(rep, /114 lectures do not fit/);
+  assert.match(rep, /Plan tuner/);
   // Undo restores the pre-regeneration state
   await page.click('#generatePlan');
   await toasts(page).last().getByRole('button', { name: 'Undo' }).click();
@@ -517,10 +517,10 @@ await test('clear plan: Cancel keeps the plan, confirm clears it, Escape cancels
   assert.equal(await page.evaluate(() => document.activeElement.textContent.trim()), 'Cancel', 'destructive dialogs focus Cancel first');
   await page.keyboard.press('Escape');
   await dialogGone(page);
-  assert.match(await metric(page, '#planReport'), /271 \/ 377/);
+  assert.match(await metric(page, '#planReport'), /264 \/ 377/);
   await page.click('#clearPlan');
   await dialogOpen(page).getByRole('button', { name: 'Cancel' }).click();
-  assert.match(await metric(page, '#planReport'), /271 \/ 377/);
+  assert.match(await metric(page, '#planReport'), /264 \/ 377/);
   await page.click('#clearPlan');
   await dialogOpen(page).getByRole('button', { name: 'Clear plan' }).click();
   await dialogGone(page);
@@ -538,30 +538,30 @@ await test('weekly workload table appears with rows', async () => {
 
 await test('task library: search, subject/category/status filters, clear, count text', async () => {
   const { page, ctx } = await open({}, '#tasks');
-  assert.match(await metric(page, '#taskCount'), /Showing 378 of 378/);
+  assert.match(await metric(page, '#taskCount'), /Showing 381 of 381/);
   await page.fill('#searchTask', 'cohort');
   const n = await page.locator('#taskTable tr').count();
   assert.ok(n >= 1 && n < 20);
-  assert.match(await metric(page, '#taskCount'), new RegExp(`Showing ${n} of 378`));
+  assert.match(await metric(page, '#taskCount'), new RegExp(`Showing ${n} of 381`));
   await page.fill('#searchTask', 'qqqq-no-match');
   assert.match(await page.locator('#taskTable').textContent(), /No matching entries/);
   await page.click('#clearFilters');
   assert.equal(await page.inputValue('#searchTask'), '');
   assert.equal(await page.evaluate(() => document.activeElement.id), 'searchTask');
   await page.selectOption('#subjectFilter', 'PSM');
-  assert.match(await metric(page, '#taskCount'), /Showing 117/);
+  assert.match(await metric(page, '#taskCount'), /Showing 121/);
   const cats = await page.locator('#categoryFilter option').allTextContents();
   assert.deepEqual(cats, ['All categories', 'PSM'], 'categories narrow to the chosen subject');
   await page.selectOption('#subjectFilter', 'Ophthalmology');
   await page.selectOption('#statusFilter', 'estimated');
-  assert.match(await metric(page, '#taskCount'), /Showing 9 of 378/);
+  assert.match(await metric(page, '#taskCount'), /Showing 9 of 381/);
   await page.selectOption('#statusFilter', 'unscheduled');
-  assert.match(await metric(page, '#taskCount'), /Showing 2 of 378/, 'the lectures that do not fit are findable');
+  assert.match(await metric(page, '#taskCount'), /Showing 8 of 381/, 'the lectures that do not fit are findable');
   await page.selectOption('#statusFilter', 'scheduled');
-  assert.match(await metric(page, '#taskCount'), /Showing 149 of 378/);
+  assert.match(await metric(page, '#taskCount'), /Showing 143 of 381/);
   await page.selectOption('#subjectFilter', 'FMT');
   await page.selectOption('#statusFilter', '');
-  assert.match(await metric(page, '#taskCount'), /Showing 45 of 378/, 'FMT now has its full lecture list');
+  assert.match(await metric(page, '#taskCount'), /Showing 44 of 381/, 'FMT now has its full lecture list');
   await ctx.close();
 });
 
@@ -575,9 +575,9 @@ await test('task library: Done/Undo buttons keep focus, row styling, status filt
   assert.equal(await activeKey(page), key);
   assert.equal((await page.locator('#taskTable [data-action="toggle-btn"]').first().textContent()).trim(), 'Undo');
   await page.selectOption('#statusFilter', 'done');
-  assert.match(await metric(page, '#taskCount'), /Showing 1 of 378/);
+  assert.match(await metric(page, '#taskCount'), /Showing 1 of 381/);
   await page.selectOption('#statusFilter', 'todo');
-  assert.match(await metric(page, '#taskCount'), /Showing 377 of 378/);
+  assert.match(await metric(page, '#taskCount'), /Showing 380 of 381/);
   await ctx.close();
 });
 
@@ -625,7 +625,7 @@ await test('add task: validation, success, appears in the library and is searcha
   await page.fill('dialog input[name=min]', '45');
   await page.keyboard.press('Enter');
   await dialogGone(page);
-  assert.match(await metric(page, '#taskCount'), /of 379/);
+  assert.match(await metric(page, '#taskCount'), /of 382/);
   await page.fill('#searchTask', 'my custom');
   assert.equal(await page.locator('#taskTable tr').count(), 1);
   assert.match(await page.locator('#taskTable tr').textContent(), /45m/);
@@ -676,7 +676,7 @@ await test('simulator: live results, risk levels, validation, backlog creation, 
   await page.reload();
   assert.equal(await page.inputValue('#simHours'), '2.5');
   await goto(page, 'dashboard');
-  assert.equal(await metric(page, '#backlogCount'), '107', '106 lectures that do not fit + the new item');
+  assert.equal(await metric(page, '#backlogCount'), '114', '113 lectures that do not fit + the new item');
   assert.match(await metric(page, '#backlogTime'), /^\d+(\.\d)? h$/);
   await ctx.close();
 });
@@ -732,22 +732,22 @@ await test('settings: invalid values show an accessible error; valid values reco
 await test('data audit: per-subject cards, unresolved list, CSV export + import (good and bad files)', async () => {
   const { page, ctx } = await open({}, '#data');
   assert.equal(await page.locator('#dataCards .card').count(), 4);
-  assert.match(await page.locator('#dataCards').textContent(), /FMT45/);
+  assert.match(await page.locator('#dataCards').textContent(), /FMT44/);
   assert.equal(await page.locator('#estimatedList .task').count(), 9); // 8 missing + 1 approx
   const [dl] = await Promise.all([page.waitForEvent('download'), page.click('#exportTasksCsv')]);
   const csv = readFileSync(await dl.path(), 'utf8');
-  assert.equal(csv.trim().split('\n').length, 379);
+  assert.equal(csv.trim().split('\n').length, 382);
 
   const write = (name, body) => ({ name, mimeType: 'text/csv', buffer: Buffer.from(body) });
   await page.setInputFiles('#taskCsvFile', write('good.csv', 'title,subject,category,durationSec\nFMT intro,FMT,Basics,1800\nFMT two,FMT,Basics,\n,FMT,Basics,60'));
   assert.match(await toasts(page).last().textContent(), /Imported 2 tasks, skipped 1/);
-  assert.match(await page.locator('#dataCards').textContent(), /FMT47/);
+  assert.match(await page.locator('#dataCards').textContent(), /FMT46/);
   await page.setInputFiles('#taskCsvFile', write('bad.csv', 'subject,durationSec\nPSM,60'));
   assert.match(await toasts(page).last().textContent(), /"title" column/);
   await page.setInputFiles('#taskCsvFile', write('empty.csv', ''));
   assert.match(await toasts(page).last().textContent(), /no data rows/);
   await goto(page, 'tasks');
-  assert.match(await metric(page, '#taskCount'), /of 380/);
+  assert.match(await metric(page, '#taskCount'), /of 383/);
   await ctx.close();
 });
 
@@ -1218,7 +1218,7 @@ await test('daily view: Edit changes runtime and type; Day settings can mark a d
   await page.locator('#weekDate').dispatchEvent('change');
   assert.match(await page.locator('#weekGrid .day.blocked').textContent(), /Holiday/);
   // the moved lectures are still scheduled (nothing lost): all 271 remain placed
-  assert.match(await metric(page, '#planReport'), /271 \/ 377/);
+  assert.match(await metric(page, '#planReport'), /264 \/ 377/);
   await toasts(page).last().waitFor({ state: 'attached' });
   await ctx.close();
 });
@@ -1500,6 +1500,8 @@ export function createClient() {
     const f = { op: 'select', filters: {}, body: null };
     async function run() {
       const row = db[name];
+      if (name === 'viewer_share' && db.noViewerTable) return { data: null, error: { code: 'PGRST205', message: "Could not find the table 'public.viewer_share' in the schema cache" } };
+      if (name === 'viewer_share' && f.op !== 'select' && db.denyWrites) return { data: null, error: { code: '42501', message: 'new row violates row-level security policy' } };
       if (f.op === 'select') return { data: row ? { ...row } : null, error: null };
       db.calls.push({ table: name, op: f.op, body: f.body, filters: { ...f.filters } });
       if (f.op === 'insert') { if (row) return { data: null, error: { code: '23505' } }; db[name] = { ...f.body }; return { data: null, error: null }; }
@@ -1539,19 +1541,21 @@ const stateWithDone = (n) => {
 const doneInStorage = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('mbbsStudyCommandCenter.v1')).tasks.filter((t) => t.type === 'video' && t.done).length);
 
 /** Open the app with cloud sync on, a fake backend, and chosen local / cloud data. */
-async function openSynced({ local, cloud, signedIn = true, hash = '#dashboard' }) {
+async function openSynced({ local, cloud, signedIn = true, hash = '#dashboard', noViewerTable = false, denyWrites = false }) {
   const t = await newPage();
   await t.page.route('**/js/supabase-config.js', (r) => r.fulfill({ contentType: 'text/javascript', body: "export const supabaseConfig = { url: 'https://fake.supabase.co', anonKey: 'k' };" }));
   await t.page.route(/cdn\.jsdelivr\.net\/npm\/@supabase\/supabase-js/, (r) => r.fulfill({ contentType: 'text/javascript', body: FAKE_SDK }));
-  await t.page.addInitScript(({ local: l, cloud: c, signedIn: si }) => {
+  await t.page.addInitScript(({ local: l, cloud: c, signedIn: si, noViewerTable: nv, denyWrites: dw }) => {
     window.__db = {
       calls: [],
+      noViewerTable: nv,
+      denyWrites: dw,
       user: si ? { id: 'u1', email: 'asha@example.com', user_metadata: { full_name: 'Asha K' } } : null,
       viewer_share: null,
       user_state: c ? { user_id: 'u1', state: c, rev: 5, updated_at: '2026-10-15T08:00:00Z' } : null,
     };
     if (l && !localStorage.getItem('mbbsStudyCommandCenter.v1')) localStorage.setItem('mbbsStudyCommandCenter.v1', JSON.stringify(l));
-  }, { local, cloud, signedIn });
+  }, { local, cloud, signedIn, noViewerTable, denyWrites });
   await t.page.goto(`${BASE}/${hash}`);
   await t.page.waitForSelector('.page:not([hidden])');
   return t;
@@ -1643,10 +1647,191 @@ await test('dashboard "Share progress": needs sign-in first, then creates the li
   await ctx.close();
 });
 
+
+await test('viewer link when the database setup was never run: Settings says so plainly and offers the SQL with the steps', async () => {
+  const { page, ctx, problems } = await openSynced({ local: null, cloud: null, noViewerTable: true, hash: '#settings' });
+  await page.waitForFunction(() => /One-time setup is missing/.test(document.querySelector('#viewerState').textContent));
+  assert.equal(await page.isVisible('#viewerCreate'), false, 'no button that is bound to fail');
+  assert.equal(await page.isVisible('#viewerSetup'), true);
+  await page.click('#viewerSetup');
+  await page.waitForSelector('dialog[open] #setupSql');
+  const sql = await page.inputValue('#setupSql');
+  assert.match(sql, /create table if not exists public\.viewer_share/);
+  assert.match(sql, /get_shared_progress/);
+  assert.equal(await page.getAttribute('dialog a', 'href'), 'https://supabase.com/dashboard/project/fake/sql/new', 'opens the SQL editor of the right project');
+  await page.click('#setupCopy');
+  assert.match(await allToasts(page), /SQL copied|Ctrl\+C/);
+  assert.deepEqual(problems.filter((p) => !p.includes('fake.supabase') && !p.includes('Could not find the table')), []);
+  await ctx.close();
+});
+
+await test('dashboard "Share progress" with the setup missing goes straight to the setup steps instead of failing', async () => {
+  const { page, ctx } = await openSynced({ local: null, cloud: null, noViewerTable: true });
+  await page.waitForFunction(() => /Signed in/.test(document.querySelector('#accountBtn').textContent));
+  await page.waitForTimeout(1800); // the viewer-link check runs just after sync
+  await page.click('#shareBtn');
+  await page.waitForSelector('dialog[open] #setupSql');
+  assert.match(await page.locator('dialog h2').textContent(), /One-time setup/);
+  await ctx.close();
+});
+
+await test('viewer link: when Supabase refuses the write, the message says so instead of "check your connection"', async () => {
+  const { page, ctx } = await openSynced({ local: null, cloud: null, denyWrites: true });
+  await page.waitForFunction(() => /Signed in/.test(document.querySelector('#accountBtn').textContent));
+  await page.waitForTimeout(1800);
+  await page.click('#shareBtn');
+  const msg = await allToasts(page);
+  assert.match(msg, /Supabase refused the request/);
+  assert.doesNotMatch(msg, /check your connection/i);
+  await ctx.close();
+});
+
 await test('the Share progress button is hidden when cloud sync is not set up', async () => {
   const { page, ctx } = await open();
   assert.equal(await page.isVisible('#shareBtn'), false);
   await ctx.close();
+});
+
+
+// ---- plan tuner and catch-up -----------------------------------------------------------------------------------
+
+const { generatePlan: genForTest } = await import('../../js/planner.js');
+
+/** Saved state with fast playback (so the full library fits by 31 Dec) and an optional plan made on an earlier day. */
+function seededState({ planOn } = {}) {
+  const st = freshForTest();
+  st.settings = { ...st.settings, speed: 2 };
+  if (planOn) {
+    const r = genForTest(st.tasks, st.planConfig, st.settings, new Date(), { today: planOn });
+    st.tasks = r.tasks; st.backlog = r.backlog; st.planMeta = r.meta; st.version = 2;
+  }
+  return st;
+}
+async function openTuner(seed) {
+  const t = await newPage({ viewport: { width: 1280, height: 1000 } });
+  await t.page.addInitScript((s) => { if (!localStorage.getItem('mbbsStudyCommandCenter.v1')) localStorage.setItem('mbbsStudyCommandCenter.v1', JSON.stringify(s)); }, seed);
+  await t.page.goto(`${BASE}/#calendar`);
+  await t.page.waitForSelector('#page-calendar:not([hidden]) #tuneEnd');
+  return t;
+}
+const sliderVal = (page, id) => page.$eval(id, (e) => Number(e.value));
+
+await test('plan tuner: the two sliders are linked (hours up -> finish earlier, date earlier -> hours up) and say when it is impossible', async () => {
+  const { page, ctx, problems } = await openTuner(seededState());
+  assert.match(await page.textContent('#tuneVerdict'), /you finish by/);
+  await page.fill('#tuneHours', '2.5');
+  const endAt25 = await sliderVal(page, '#tuneEnd');
+  await page.fill('#tuneHours', '3.25');
+  const endAt325 = await sliderVal(page, '#tuneEnd');
+  assert.ok(endAt325 < endAt25, `more hours finishes earlier (${endAt325} < ${endAt25})`);
+  assert.match(await page.textContent('#tuneEndOut'), /\(\d+ days? from today\)/);
+  await page.fill('#tuneEnd', '70');
+  const h70 = await sliderVal(page, '#tuneHours');
+  await page.fill('#tuneEnd', '60');
+  const h60 = await sliderVal(page, '#tuneHours');
+  assert.ok(h60 >= h70, 'an earlier date needs at least as many hours');
+  await page.fill('#tuneEnd', '10');
+  assert.equal(await sliderVal(page, '#tuneHours'), await page.$eval('#tuneHours', (e) => Number(e.max)), 'pinned at the most the evening allows');
+  assert.match(await page.textContent('#tuneVerdict'), /does not finish by/);
+  assert.ok(await page.$eval('#tuneVerdict', (e) => e.classList.contains('is-bad')));
+  assert.deepEqual(problems, []);
+  await ctx.close();
+});
+
+await test('plan tuner: presets set the phases, Asleep removes a subject from the work, Apply rebuilds, Undo restores', async () => {
+  const { page, ctx, problems } = await openTuner(seededState());
+  const sel = (s) => page.$eval(`#ph-${s}`, (e) => e.value);
+  await page.click('[data-preset="pairs"]');
+  assert.deepEqual([await sel('PSM'), await sel('Ophthalmology'), await sel('FMT'), await sel('ENT')], ['1', '1', '2', '2']);
+  await page.click('[data-preset="sequential"]');
+  assert.deepEqual([await sel('PSM'), await sel('Ophthalmology'), await sel('FMT'), await sel('ENT')], ['1', '2', '3', '4']);
+  await page.click('[data-preset="three-one"]');
+  assert.deepEqual([await sel('PSM'), await sel('Ophthalmology'), await sel('FMT'), await sel('ENT')], ['1', '1', '1', '2']);
+  await page.click('[data-preset="together"]');
+  assert.deepEqual([await sel('PSM'), await sel('Ophthalmology'), await sel('FMT'), await sel('ENT')], ['1', '1', '1', '1']);
+
+  const workBefore = await page.textContent('#tunerWork');
+  await page.selectOption('#ph-ENT', 'asleep');
+  assert.match(await page.textContent('#tunerWork'), /ENT asleep, not counted/);
+  assert.notEqual(await page.textContent('#tunerWork'), workBefore);
+  await page.click('[data-preset="pairs"]'); // presets only reshuffle awake subjects: ENT stays asleep
+  assert.equal(await sel('ENT'), 'asleep');
+
+  await page.fill('#tuneEnd', '78'); // 31 Dec
+  await page.click('#tuneApply');
+  assert.match(await allToasts(page), /Plan rebuilt: everything fits by 31 December/);
+  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('mbbsStudyCommandCenter.v1')));
+  assert.deepEqual(saved.planConfig.asleep, ['ENT']);
+  assert.deepEqual(saved.planConfig.groups, [['PSM', 'Ophthalmology'], ['FMT']]);
+  assert.ok(saved.tasks.filter((t) => t.subject === 'ENT').every((t) => !t.scheduledDate), 'ENT has no dates');
+  assert.equal(saved.backlog.length, 0);
+  assert.match(await page.textContent('#phaseSummary'), /Phase 1: PSM \+ Ophthalmology/);
+  assert.match(await page.textContent('#phaseSummary'), /Asleep:\s*ENT/);
+  assert.match(await metric(page, '#planReport'), /Asleep \(not planned\)\s*65/);
+
+  await goto(page, 'tasks');
+  await page.fill('#searchTask', 'Acoustic Neuroma');
+  assert.match(await page.locator('#taskTable tr').first().textContent(), /Asleep/);
+  await goto(page, 'calendar');
+  await toasts(page).last().getByRole('button', { name: 'Undo' }).click().catch(() => {});
+  assert.deepEqual(problems, []);
+  await ctx.close();
+});
+
+await test('plan tuner: Undo brings back the previous plan and study order', async () => {
+  const { page, ctx } = await openTuner(seededState());
+  await page.selectOption('#ph-FMT', 'asleep');
+  await page.click('#tuneApply');
+  await page.waitForSelector('#toasts .toast');
+  await page.locator('#toasts .toast', { hasText: 'Plan rebuilt' }).getByRole('button', { name: 'Undo' }).click();
+  assert.match(await allToasts(page), /Previous plan restored/);
+  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('mbbsStudyCommandCenter.v1')));
+  assert.deepEqual(saved.planConfig.asleep, []);
+  await ctx.close();
+});
+
+await test('catch-up: lectures left open on past days show a banner; "Re-spread from today" moves them forward evenly, Undo restores', async () => {
+  const { page, ctx, problems } = await openTuner(seededState({ planOn: '2026-10-05' }));
+  assert.equal(await page.isVisible('#catchup'), true);
+  assert.match(await page.textContent('#catchupText'), /\d+ lectures? planned for earlier days (is|are) still open/);
+  await page.click('#catchup button');
+  assert.match(await allToasts(page), /Plan re-spread from today: \d+ missed lectures? (was|were) moved forward/);
+  assert.equal(await page.isVisible('#catchup'), false);
+  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('mbbsStudyCommandCenter.v1')));
+  const open = saved.tasks.filter((t) => t.type === 'video' && !t.done && t.scheduledDate);
+  assert.ok(open.length > 300 && open.every((t) => t.scheduledDate >= '2026-10-14'), 'nothing open is dated in the past');
+  assert.equal(saved.backlog.length, 0);
+  await page.locator('#toasts .toast', { hasText: 'Plan re-spread' }).getByRole('button', { name: 'Undo' }).click();
+  assert.equal(await page.isVisible('#catchup'), true, 'undo brings the old plan (and the banner) back');
+  assert.deepEqual(problems, []);
+  await ctx.close();
+});
+
+await test('catch-up banner appears on every page and not when nothing is overdue', async () => {
+  const a = await openTuner(seededState({ planOn: '2026-10-14' }));
+  assert.equal(await a.page.isVisible('#catchup'), false, 'a plan made today has nothing overdue');
+  await a.ctx.close();
+  const b = await openTuner(seededState({ planOn: '2026-10-05' }));
+  for (const name of ['dashboard', 'day', 'tasks', 'settings']) {
+    await goto(b.page, name);
+    assert.equal(await b.page.isVisible('#catchup'), true, name);
+  }
+  await b.ctx.close();
+});
+
+await test('plan tuner: mobile (375px) has no horizontal scroll and every control is reachable', async () => {
+  const t = await newPage({ viewport: { width: 375, height: 800 } });
+  await t.page.addInitScript((s) => localStorage.setItem('mbbsStudyCommandCenter.v1', JSON.stringify(s)), seededState());
+  await t.page.goto(`${BASE}/#calendar`);
+  await t.page.waitForSelector('#tuneEnd');
+  assert.ok(await t.page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), 'no horizontal scroll');
+  for (const sel of ['#tuneEnd', '#tuneHours', '#ph-PSM', '#tuneApply', '[data-preset="pairs"]']) {
+    assert.ok(await t.page.locator(sel).isVisible(), sel);
+  }
+  await t.page.addScriptTag({ content: AXE });
+  const v = await t.page.evaluate(async () => (await window.axe.run(document.getElementById('tuner'), { runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'best-practice'] } })).violations.map((x) => `${x.id}: ${x.nodes.length}`));
+  assert.deepEqual(v, []);
+  await t.ctx.close();
 });
 
 // ---------------------------------------------------------------------------------------------

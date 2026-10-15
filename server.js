@@ -17,9 +17,10 @@ const TYPES = {
   '.ico': 'image/x-icon',
   '.csv': 'text/csv; charset=utf-8',
   '.md': 'text/markdown; charset=utf-8',
+  '.sql': 'text/plain; charset=utf-8',
 };
 // Only the app itself is served; tests, node_modules and the legacy copy are not.
-const PUBLIC = ['index.html', 'view.html', 'favicon.svg', 'manifest.webmanifest', 'sw.js', 'css', 'js'];
+const PUBLIC = ['index.html', 'view.html', 'favicon.svg', 'manifest.webmanifest', 'sw.js', 'css', 'js', 'supabase'];
 
 export function createServer() {
   return http.createServer(async (req, res) => {
