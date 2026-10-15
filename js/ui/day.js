@@ -47,6 +47,10 @@ export function renderDay() {
         <span class="small muted">${fmtDur(x.done * 3600)} completed</span></div>`;
     }).join('')}`;
 
+  const notes = state.extras[iso] || [];
+  $('#extraList').innerHTML = notes.map((n, i) => `<li><span>${esc(n)}</span>
+    <button type="button" class="link-btn" data-action="remove-extra" data-id="${iso}:${i}" aria-label="Remove note: ${esc(n)}">Remove</button></li>`).join('');
+
   const closed = day.kind === 'trip' || day.kind === 'off';
   $('#dayBlocks').innerHTML = BLOCKS.map((b) => blockSectionHTML(day, b, 'day')).join('');
   $('#dayBlocks').classList.toggle('closed', closed);

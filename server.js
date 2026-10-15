@@ -19,7 +19,7 @@ const TYPES = {
   '.md': 'text/markdown; charset=utf-8',
 };
 // Only the app itself is served; tests, node_modules and the legacy copy are not.
-const PUBLIC = ['index.html', 'favicon.svg', 'manifest.webmanifest', 'sw.js', 'css', 'js'];
+const PUBLIC = ['index.html', 'view.html', 'favicon.svg', 'manifest.webmanifest', 'sw.js', 'css', 'js'];
 
 export function createServer() {
   return http.createServer(async (req, res) => {

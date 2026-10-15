@@ -177,7 +177,7 @@ test('4d. manual split places the extra sessions in the same block on later days
   assert.equal(days[0], '2026-10-14');
   assert.ok(days[1] > days[0] && days[2] > days[1]);
   assert.equal(r.unplaced.length, 0);
-  assert.equal(lectureStats(st.tasks).total, 268, 'still 268 lectures');
+  assert.equal(lectureStats(st.tasks).total, 377, 'still 377 lectures');
   // guard rails
   assert.match(splitInState(st, t.id, 1).error, /2 and 8/);
   assert.match(splitInState(st, 'LIGHT-RECALL-2026-10-14', 2).error, /cannot be split/);
@@ -245,7 +245,7 @@ test('7. regenerating preserves completed work, pinned moves and creates no dupl
   assert.equal(res.tasks.find((t) => t.id === gen.id).done, true, 'completed generated task stays completed');
   const pinned = res.tasks.find((t) => t.id === lectures[4].id);
   assert.equal(pinned.scheduledDate, '2026-10-25');
-  assert.equal(res.tasks.filter((t) => t.type === 'video').length, 268);
+  assert.equal(res.tasks.filter((t) => t.type === 'video').length, 377);
   const again = generatePlan(res.tasks, st.planConfig, st.settings);
   assert.deepEqual(again.tasks.map((t) => [t.id, t.scheduledDate, t.block]).sort(), res.tasks.map((t) => [t.id, t.scheduledDate, t.block]).sort());
 });
@@ -405,7 +405,9 @@ test('existing data is preserved: ids, durations, statuses and completion surviv
   const st = freshState();
   st.tasks[0].done = true;
   st.tasks[0].scheduledDate = '2026-10-12';
-  const res = generatePlan(st.tasks, st.planConfig, st.settings);
+  // Fast playback so the whole library fits and nothing gets auto-split (an auto-split lecture is reported as sessions).
+  const res = generatePlan(st.tasks, st.planConfig, { ...st.settings, speed: 2 });
+  assert.equal(res.backlog.length, 0);
   for (const orig of INITIAL_TASKS) {
     const t = res.tasks.find((x) => x.id === orig.id);
     assert.ok(t, `${orig.id} still present`);
@@ -435,7 +437,7 @@ test('migration: v1 saved data (one weekend capacity, no blocks) becomes v2 with
   assert.equal(out.planConfig.weekendLight + out.planConfig.weekendFocus, 6);
   assert.deepEqual([out.planConfig.weekendLight, out.planConfig.weekendFocus], [2, 4]);
   assert.deepEqual(out.planConfig.exceptions, {});
-  assert.equal(out.tasks.length, 270);
+  assert.equal(out.tasks.length, 377);
   assert.equal(out.tasks[0].done, true);
   assert.equal(out.tasks[1].scheduledDate, '2026-10-13');
   const migrated = generatePlan(out.tasks, out.planConfig, out.settings);

@@ -29,13 +29,38 @@ js/actions.js         every user action (validated, with toasts)
 js/planner.js         pure scheduling engine (light + focused capacities)
 js/taskOps.js         move / split / reclassify / auto-place / day exceptions (pure)
 js/store.js           state, persistence, backup sanitising
+js/cloud.js           Google sign-in + Supabase sync (lazy-loaded, off until configured)
+js/syncLogic.js       pure sync decisions (unit tested)
+js/share.js           viewer-link management; js/viewerSnapshot.js builds the numbers-only summary
+view.html, js/viewer.js, css/viewer.css   the read-only big-print viewer page
 js/utils.js           dates, formatting, CSV
-js/data.js            embedded task library (270 entries)
+js/data.js            embedded task library (377 lectures)
 js/ui/*               one view module per page + dialogs/toasts/helpers
 server.js             zero-dependency static server
 tests/unit, tests/e2e automated tests
 legacy/               the original single-file version, kept for reference
 ```
+
+## Cloud sync (Google sign-in on Supabase)
+
+Sign in with Google to open the same progress on your phone, laptop and tablet. The app still works offline: your browser copy is what you see, and changes upload when you are online. Sync is off until you add a free Supabase project:
+
+1. Create a project at [supabase.com](https://supabase.com). In the **SQL editor**, run [supabase/schema.sql](supabase/schema.sql). It creates the `user_state` table, row-level security (each account can only touch its own row) and live updates.
+2. Create Google credentials: in [Google Cloud Console](https://console.cloud.google.com/apis/credentials) make an **OAuth client ID** (type *Web application*). Under *Authorized redirect URIs* add `https://<your-project-ref>.supabase.co/auth/v1/callback`.
+3. In Supabase go to **Authentication > Providers > Google**, enable it and paste the Google client ID and secret.
+4. In Supabase go to **Authentication > URL Configuration**: set *Site URL* to your Vercel address and add it (and `http://localhost:3000`) under *Redirect URLs*.
+5. In **Project settings > API** copy the *Project URL* and the **anon** key into `js/supabase-config.js` (replace `null`), then redeploy. Never use the `service_role` key.
+
+How it behaves: each account stores one row. Edits upload about 1.5 seconds after you stop; a change from another device appears without reloading (and when you switch back to the tab). If both this device and the cloud changed since they last agreed, or a new device already has progress, you are asked which copy to keep; "Decide later" pauses sync and changes nothing. Sign-in leaves the page and returns to it, which also works on phones that block pop-ups. Export backup still works as a manual safety net.
+
+## Viewer link (for a parent or friend)
+
+Settings > **Viewer link** creates a secret link to a separate, read-only page (`view.html`) in big print: overall progress, on track / behind, whether you studied today, streak, the last 7 days, lectures per subject, a countdown and your own **Also done** notes (add them in the Daily view, under each day).
+
+- Run [supabase/viewer.sql](supabase/viewer.sql) once in the Supabase SQL editor (after `schema.sql`), then sign in and press **Create viewer link**.
+- The viewer sees **numbers only**: no lecture titles, no settings, no plan, no controls, and the page has no link to the planner. The summary is stored in its own table, so the link cannot reach your planner data.
+- The link holds 192 random bits after a `#`, which browsers never send to servers or logs. Anyone who has the link can open it, so share it only with people you trust.
+- **Make a new link** kills the old one instantly; **Turn off** also deletes the stored summary. The summary refreshes whenever your progress syncs, and the viewer page re-checks every minute.
 
 ## Dashboard extras
 
@@ -72,7 +97,7 @@ Data saved by the older single-capacity version is migrated automatically on fir
 ## Data notes
 
 - PSM 117 entries (49 and 50 kept as a possible duplicate); Ophthalmology 151 entries including estimated durations.
-- FMT (44 videos, 33 h 56 min) and ENT (65 videos, 47 h 23 min) are verified totals only; their title lists were not recoverable, so they are shown as placeholders, not invented. Add them via Data audit → Import task CSV (`title`, `subject`, `category`, `durationSec` required).
+- FMT (44 lectures) and ENT (65 lectures) are in the library with every title and duration. ENT adds up to its recorded 47 h 23 min; the FMT list adds up to 34 h 36 min, 40 minutes more than the 33 h 56 min recorded earlier, so one FMT duration may be off. Older saved data that still has the two placeholders is upgraded automatically on load and the plan is rebuilt once (Undo is offered).
 
 ## Storage
 

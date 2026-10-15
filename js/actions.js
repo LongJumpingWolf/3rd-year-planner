@@ -5,7 +5,7 @@ import {
   simulate, taskPlannedSec, validatePlanConfig, validateSettingsTimes, weekdayCapacity,
 } from './planner.js';
 import { assignTask, autoPlaceTask, fixOverflow, reclassifyTask, setDayException, setDuration, splitInState, unscheduleTask } from './taskOps.js';
-import { clearSaved, commit, findTask, freshState, newId, persist, replaceState, sanitizeState, state, SCHEMA_VERSION } from './store.js';
+import { clearSaved, commit, EXTRA_MAX_LEN, EXTRA_MAX_PER_DAY, findTask, freshState, newId, persist, replaceState, sanitizeState, state, SCHEMA_VERSION } from './store.js';
 import { dateISO, esc, fmtDate, fmtHours, isValidISO, num, parseCSV, toCSV } from './utils.js';
 import { plannerCSV } from './exportPlan.js';
 import { confirmDialog, openDialog } from './ui/dialogs.js';
@@ -57,6 +57,33 @@ export function toggleDone(id, val) {
   commit();
   toast(t.done ? `Marked done: ${t.title}` : `Marked not done: ${t.title}`, {
     action: { label: 'Undo', run: () => { t.done = prev.done; if (prev.doneAt) t.doneAt = prev.doneAt; else delete t.doneAt; commit(); } },
+  });
+}
+
+// ---- day notes shown on the viewer link ------------------------------------------------------------
+
+/** Returns an error string, or '' when the note was added. */
+export function addExtra(iso, text) {
+  const t = String(text ?? '').trim();
+  if (!isValidISO(iso)) return 'Pick a valid day first.';
+  if (!t) return 'Type what you did first.';
+  if (t.length > EXTRA_MAX_LEN) return `Keep it under ${EXTRA_MAX_LEN} characters.`;
+  const list = state.extras[iso] || [];
+  if (list.length >= EXTRA_MAX_PER_DAY) return `You can add up to ${EXTRA_MAX_PER_DAY} notes per day.`;
+  state.extras[iso] = [...list, t];
+  commit();
+  return '';
+}
+
+export function removeExtra(iso, index) {
+  const list = state.extras[iso];
+  if (!list || !list[index]) return;
+  const removed = list[index];
+  const next = list.filter((_, i) => i !== index);
+  if (next.length) state.extras[iso] = next; else delete state.extras[iso];
+  commit();
+  toast('Note removed.', {
+    action: { label: 'Undo', run: () => { const cur = state.extras[iso] || []; cur.splice(Math.min(index, cur.length), 0, removed); state.extras[iso] = cur; commit(); } },
   });
 }
 
@@ -403,14 +430,20 @@ export async function runGenerate(formValues, { silent = false, undoable = true 
   return { ok: true };
 }
 
-/** Called once on load / after importing an old backup: rebuild the plan so light and focused work are separated. */
+/**
+ * Called on load / after importing a backup. Rebuilds the plan once when (a) the data predates the two-block schedule, or
+ * (b) lectures were added to the library since the plan was made (`fresh`). Completed and pinned tasks are kept; Undo is offered for (b).
+ */
 export async function migrateIfNeeded() {
-  if (state.version >= SCHEMA_VERSION) return false;
+  const hasFresh = state.tasks.some((t) => t.fresh);
+  const wasOld = state.version < SCHEMA_VERSION;
+  if (!wasOld && !hasFresh) return false;
   const hadPlan = state.tasks.some((t) => t.scheduledDate);
-  const res = await runGenerate({}, { silent: true });
+  const res = await runGenerate({}, { silent: !hasFresh });
+  state.tasks.forEach((t) => { delete t.fresh; });
   state.version = SCHEMA_VERSION;
   persist();
-  if (hadPlan && res.ok) toast('Your plan now separates Light work (college gaps) from Focused work (home / evening). Progress and completed tasks were kept; a copy of your old data is stored in this browser.', { ms: 12000 });
+  if (wasOld && hadPlan && res.ok) toast('Your plan now separates Light work (college gaps) from Focused work (home / evening). Progress and completed tasks were kept; a copy of your old data is stored in this browser.', { ms: 12000 });
   return true;
 }
 

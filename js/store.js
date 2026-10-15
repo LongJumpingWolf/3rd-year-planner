@@ -8,6 +8,9 @@ export const BACKUP_KEY = 'mbbsStudyCommandCenter.v1.pre-blocks-backup';
 /** 2 = separate light / focused capacities and per-task block assignment. */
 export const SCHEMA_VERSION = 2;
 
+export const EXTRA_MAX_LEN = 100;
+export const EXTRA_MAX_PER_DAY = 8;
+
 export function freshTasks() {
   return INITIAL_TASKS.map((x) => ({ ...x, scheduledDate: null, selected: false }));
 }
@@ -21,6 +24,7 @@ export function freshState() {
     backlog: [],
     planMeta: null,
     simLast: { hours: 2, reserve: 6, days: 3, existing: 1 },
+    extras: {},
   };
 }
 
@@ -55,6 +59,22 @@ function cleanTask(t) {
 }
 
 /**
+ * Subjects that used to ship as one "total only" placeholder (FMT, ENT) now ship with their full lecture lists.
+ * Saved data that still has the placeholder gets the real lectures instead (marked `fresh` so the plan is rebuilt once).
+ * Skipped when the saved data already holds that subject's own lectures (e.g. from a CSV import), so nothing is duplicated.
+ */
+function upgradeLibrary(tasks, seen) {
+  for (const ph of tasks.filter((t) => t.type === 'dataset_placeholder')) {
+    const lectures = INITIAL_TASKS.filter((x) => x.subject === ph.subject && x.type !== 'dataset_placeholder');
+    if (!lectures.length || tasks.some((t) => t.subject === ph.subject && t.type !== 'dataset_placeholder')) continue;
+    const at = tasks.indexOf(ph);
+    const added = lectures.filter((x) => !seen.has(x.id)).map((x) => cleanTask({ ...x, scheduledDate: null, selected: false, fresh: true }));
+    added.forEach((t) => seen.add(t.id));
+    tasks.splice(at, 1, ...added);
+  }
+}
+
+/**
  * Turn arbitrary (possibly old, partial or hand-edited) JSON into a safe state object.
  * Returns null when it does not look like a backup at all.
  */
@@ -67,6 +87,7 @@ export function sanitizeState(raw) {
     const c = cleanTask(t);
     if (c && !seen.has(c.id)) { seen.add(c.id); tasks.push(c); }
   }
+  upgradeLibrary(tasks, seen);
   if (!tasks.length) return null;
   const settings = { ...base.settings };
   for (const k of Object.keys(DEFAULT_SETTINGS)) {
@@ -101,8 +122,15 @@ export function sanitizeState(raw) {
     .map((b) => ({ taskId: b.taskId, reason: String(b.reason || 'Unscheduled') }));
   const simLast = { ...base.simLast };
   for (const k of Object.keys(simLast)) simLast[k] = num(raw.simLast?.[k], simLast[k]);
+  // Short notes per day ("did 40 MCQs") that the owner chooses to show on the viewer link.
+  const extras = {};
+  for (const [iso, list] of Object.entries(raw.extras && typeof raw.extras === 'object' ? raw.extras : {})) {
+    if (!isValidISO(iso) || !Array.isArray(list)) continue;
+    const items = list.map((x) => String(x ?? '').trim().slice(0, EXTRA_MAX_LEN)).filter(Boolean).slice(0, EXTRA_MAX_PER_DAY);
+    if (items.length) extras[iso] = items;
+  }
   const planMeta = raw.planMeta && typeof raw.planMeta === 'object' ? raw.planMeta : null;
-  return { tasks, settings, planConfig, backlog, planMeta, simLast, version: Number(raw.version) >= SCHEMA_VERSION ? SCHEMA_VERSION : 1 };
+  return { tasks, settings, planConfig, backlog, planMeta, simLast, extras, version: Number(raw.version) >= SCHEMA_VERSION ? SCHEMA_VERSION : 1 };
 }
 
 let idCounter = 0;

@@ -36,6 +36,8 @@ async function newPage({ viewport = { width: 1280, height: 900 }, colorScheme = 
   page.on('console', (m) => { if (m.type() === 'error') problems.push(`console: ${m.text()}`); });
   page.on('requestfailed', (r) => problems.push(`requestfailed: ${r.url()}`));
   page.on('response', (r) => { if (r.status() >= 400) problems.push(`http ${r.status()}: ${r.url()}`); });
+  // The app's real backend settings must never be contacted from tests: run with cloud sync switched off.
+  await page.route('**/js/supabase-config.js', (r) => r.fulfill({ contentType: 'text/javascript', body: 'export const supabaseConfig = null;' }));
   await page.clock.setFixedTime(TODAY);
   if (blockStorage) {
     await page.addInitScript(() => {
@@ -97,9 +99,9 @@ console.log(`\nRunning E2E against ${BASE} using ${exe || 'chrome channel'}\n`);
 await test('loads cleanly: no console errors, no failed requests, correct title, dashboard visible', async () => {
   const { page, problems, ctx } = await open();
   assert.match(await page.title(), /Dashboard · MBBS Study Command Center/);
-  assert.equal(await metric(page, '#mTasks'), '268');
-  assert.equal(await metric(page, '#mDone'), '0 / 268');
-  assert.match(await metric(page, '#mSubjects'), /2 subjects/); // FMT/ENT are verified totals, not schedulable videos
+  assert.equal(await metric(page, '#mTasks'), '377');
+  assert.equal(await metric(page, '#mDone'), '0 / 377');
+  assert.match(await metric(page, '#mSubjects'), /4 subjects/);
   assert.equal(await page.locator('#nav a').count(), 7);
   assert.equal(await page.locator('.page:not([hidden])').count(), 1);
   assert.deepEqual(problems, []);
@@ -189,17 +191,17 @@ await test('dashboard: shows both blocks for the date; tick a lecture by keyboar
   await box.focus();
   const key = await activeKey(page);
   await page.keyboard.press('Space');
-  assert.equal(await metric(page, '#mDone'), '1 / 268');
+  assert.equal(await metric(page, '#mDone'), '1 / 377');
   assert.equal(await activeKey(page), key, 'focus must survive the re-render');
   assert.equal(await page.locator('#todayTasks .btask.done').count(), 1);
   assert.match(await toasts(page).first().textContent(), /Marked done/);
   await toasts(page).first().getByRole('button', { name: 'Undo' }).click();
-  assert.equal(await metric(page, '#mDone'), '0 / 268');
+  assert.equal(await metric(page, '#mDone'), '0 / 377');
   await box.focus();
   await page.keyboard.press('Space');
   await page.reload();
   await page.waitForSelector('.page:not([hidden])');
-  assert.equal(await metric(page, '#mDone'), '1 / 268');
+  assert.equal(await metric(page, '#mDone'), '1 / 377');
   assert.equal(await page.inputValue('#focusDate'), '2026-10-14');
   assert.equal(await page.locator('#todayTasks .block-focus .btask.done').count(), 1);
   await ctx.close();
@@ -309,12 +311,12 @@ await test('daily view: clearing the date sends the task to the backlog; "Next f
   await dialogGone(page);
   assert.match(await toasts(page).last().textContent(), /backlog/);
   await goto(page, 'calendar');
-  assert.equal(await page.locator('#backlogList .task').count(), 3, '2 that never fit + this one');
+  assert.equal(await page.locator('#backlogList .task').count(), 107, '106 that never fit + this one');
   const card = page.locator('#backlogList .task', { hasText: title });
   assert.match(await card.textContent(), /Manually unscheduled/);
   await card.getByRole('button', { name: /Next free slot/ }).click();
   assert.match(await toasts(page).last().textContent(), /Placed in focused work on/);
-  assert.equal(await page.locator('#backlogList .task').count(), 2);
+  assert.equal(await page.locator('#backlogList .task').count(), 106);
   await ctx.close();
 });
 
@@ -362,7 +364,7 @@ await test('daily view: + Add task picker works per block — focused shows ever
   await page.click('#clearPlan');
   await dialogOpen(page).getByRole('button', { name: 'Clear plan' }).click();
   await dialogGone(page);
-  assert.match(await metric(page, '#planReport'), /0 \/ 268/);
+  assert.match(await metric(page, '#planReport'), /0 \/ 377/);
   await page.goto(`${BASE}/#day/2026-10-14`);
   await page.waitForSelector('#page-day:not([hidden])');
   assert.equal(await page.locator('#dayBlocks .btask').count(), 0);
@@ -449,14 +451,14 @@ await test('scheduler form: validation messages, success toast, regenerate keeps
   await dialogGone(page);
   await goto(page, 'calendar');
   await page.click('#generatePlan');
-  assert.match(await toasts(page).last().textContent(), /Plan generated: 266 of 268 lectures placed \(your manual moves were kept\)\. 2 tasks did not fit \(2 focused, 0 light\)/);
+  assert.match(await toasts(page).last().textContent(), /Plan generated: 271 of 377 lectures placed, 1 lecture split into sessions \(your manual moves were kept\)\. 106 tasks did not fit \(106 focused, 0 light\)/);
   await page.goto(`${BASE}/#day/2026-10-17`);
   await page.waitForSelector('#page-day:not([hidden])');
   assert.equal(await focusBlock(page).locator('.btask', { hasText: title }).count(), 1);
   await goto(page, 'calendar');
   const rep = await metric(page, '#planReport');
-  assert.match(rep, /266 \/ 268/);
-  assert.match(rep, /2 lectures do not fit/);
+  assert.match(rep, /271 \/ 377/);
+  assert.match(rep, /106 lectures do not fit/);
   assert.match(rep, /Next free slot/);
   // Undo restores the pre-regeneration state
   await page.click('#generatePlan');
@@ -515,14 +517,14 @@ await test('clear plan: Cancel keeps the plan, confirm clears it, Escape cancels
   assert.equal(await page.evaluate(() => document.activeElement.textContent.trim()), 'Cancel', 'destructive dialogs focus Cancel first');
   await page.keyboard.press('Escape');
   await dialogGone(page);
-  assert.match(await metric(page, '#planReport'), /266 \/ 268/);
+  assert.match(await metric(page, '#planReport'), /271 \/ 377/);
   await page.click('#clearPlan');
   await dialogOpen(page).getByRole('button', { name: 'Cancel' }).click();
-  assert.match(await metric(page, '#planReport'), /266 \/ 268/);
+  assert.match(await metric(page, '#planReport'), /271 \/ 377/);
   await page.click('#clearPlan');
   await dialogOpen(page).getByRole('button', { name: 'Clear plan' }).click();
   await dialogGone(page);
-  assert.match(await metric(page, '#planReport'), /0 \/ 268/);
+  assert.match(await metric(page, '#planReport'), /0 \/ 377/);
   assert.match(await metric(page, '#planReport'), /No plan yet/);
   await ctx.close();
 });
@@ -536,11 +538,11 @@ await test('weekly workload table appears with rows', async () => {
 
 await test('task library: search, subject/category/status filters, clear, count text', async () => {
   const { page, ctx } = await open({}, '#tasks');
-  assert.match(await metric(page, '#taskCount'), /Showing 270 of 270/);
+  assert.match(await metric(page, '#taskCount'), /Showing 378 of 378/);
   await page.fill('#searchTask', 'cohort');
   const n = await page.locator('#taskTable tr').count();
   assert.ok(n >= 1 && n < 20);
-  assert.match(await metric(page, '#taskCount'), new RegExp(`Showing ${n} of 270`));
+  assert.match(await metric(page, '#taskCount'), new RegExp(`Showing ${n} of 378`));
   await page.fill('#searchTask', 'qqqq-no-match');
   assert.match(await page.locator('#taskTable').textContent(), /No matching entries/);
   await page.click('#clearFilters');
@@ -552,14 +554,14 @@ await test('task library: search, subject/category/status filters, clear, count 
   assert.deepEqual(cats, ['All categories', 'PSM'], 'categories narrow to the chosen subject');
   await page.selectOption('#subjectFilter', 'Ophthalmology');
   await page.selectOption('#statusFilter', 'estimated');
-  assert.match(await metric(page, '#taskCount'), /Showing 9 of 270/);
+  assert.match(await metric(page, '#taskCount'), /Showing 9 of 378/);
   await page.selectOption('#statusFilter', 'unscheduled');
-  assert.match(await metric(page, '#taskCount'), /Showing 2 of 270/, 'the two lectures that do not fit are findable');
+  assert.match(await metric(page, '#taskCount'), /Showing 2 of 378/, 'the lectures that do not fit are findable');
   await page.selectOption('#statusFilter', 'scheduled');
-  assert.match(await metric(page, '#taskCount'), /Showing 149 of 270/);
+  assert.match(await metric(page, '#taskCount'), /Showing 149 of 378/);
   await page.selectOption('#subjectFilter', 'FMT');
   await page.selectOption('#statusFilter', '');
-  assert.match(await page.locator('#taskTable').textContent(), /Verified total only/);
+  assert.match(await metric(page, '#taskCount'), /Showing 45 of 378/, 'FMT now has its full lecture list');
   await ctx.close();
 });
 
@@ -573,9 +575,9 @@ await test('task library: Done/Undo buttons keep focus, row styling, status filt
   assert.equal(await activeKey(page), key);
   assert.equal((await page.locator('#taskTable [data-action="toggle-btn"]').first().textContent()).trim(), 'Undo');
   await page.selectOption('#statusFilter', 'done');
-  assert.match(await metric(page, '#taskCount'), /Showing 1 of 270/);
+  assert.match(await metric(page, '#taskCount'), /Showing 1 of 378/);
   await page.selectOption('#statusFilter', 'todo');
-  assert.match(await metric(page, '#taskCount'), /Showing 269 of 270/);
+  assert.match(await metric(page, '#taskCount'), /Showing 377 of 378/);
   await ctx.close();
 });
 
@@ -623,7 +625,7 @@ await test('add task: validation, success, appears in the library and is searcha
   await page.fill('dialog input[name=min]', '45');
   await page.keyboard.press('Enter');
   await dialogGone(page);
-  assert.match(await metric(page, '#taskCount'), /of 271/);
+  assert.match(await metric(page, '#taskCount'), /of 379/);
   await page.fill('#searchTask', 'my custom');
   assert.equal(await page.locator('#taskTable tr').count(), 1);
   assert.match(await page.locator('#taskTable tr').textContent(), /45m/);
@@ -674,7 +676,7 @@ await test('simulator: live results, risk levels, validation, backlog creation, 
   await page.reload();
   assert.equal(await page.inputValue('#simHours'), '2.5');
   await goto(page, 'dashboard');
-  assert.equal(await metric(page, '#backlogCount'), '3', '2 lectures that do not fit + the new item');
+  assert.equal(await metric(page, '#backlogCount'), '107', '106 lectures that do not fit + the new item');
   assert.match(await metric(page, '#backlogTime'), /^\d+(\.\d)? h$/);
   await ctx.close();
 });
@@ -730,22 +732,22 @@ await test('settings: invalid values show an accessible error; valid values reco
 await test('data audit: per-subject cards, unresolved list, CSV export + import (good and bad files)', async () => {
   const { page, ctx } = await open({}, '#data');
   assert.equal(await page.locator('#dataCards .card').count(), 4);
-  assert.match(await page.locator('#dataCards').textContent(), /FMT[\s\S]*total-only placeholder/);
-  assert.equal(await page.locator('#estimatedList .task').count(), 11); // 8 missing + 1 approx + 2 placeholders
+  assert.match(await page.locator('#dataCards').textContent(), /FMT45/);
+  assert.equal(await page.locator('#estimatedList .task').count(), 9); // 8 missing + 1 approx
   const [dl] = await Promise.all([page.waitForEvent('download'), page.click('#exportTasksCsv')]);
   const csv = readFileSync(await dl.path(), 'utf8');
-  assert.equal(csv.trim().split('\n').length, 271);
+  assert.equal(csv.trim().split('\n').length, 379);
 
   const write = (name, body) => ({ name, mimeType: 'text/csv', buffer: Buffer.from(body) });
   await page.setInputFiles('#taskCsvFile', write('good.csv', 'title,subject,category,durationSec\nFMT intro,FMT,Basics,1800\nFMT two,FMT,Basics,\n,FMT,Basics,60'));
   assert.match(await toasts(page).last().textContent(), /Imported 2 tasks, skipped 1/);
-  assert.match(await page.locator('#dataCards').textContent(), /FMT[\s\S]*3/);
+  assert.match(await page.locator('#dataCards').textContent(), /FMT47/);
   await page.setInputFiles('#taskCsvFile', write('bad.csv', 'subject,durationSec\nPSM,60'));
   assert.match(await toasts(page).last().textContent(), /"title" column/);
   await page.setInputFiles('#taskCsvFile', write('empty.csv', ''));
   assert.match(await toasts(page).last().textContent(), /no data rows/);
   await goto(page, 'tasks');
-  assert.match(await metric(page, '#taskCount'), /of 272/);
+  assert.match(await metric(page, '#taskCount'), /of 380/);
   await ctx.close();
 });
 
@@ -753,33 +755,33 @@ await test('backup: export → modify → import restores; invalid JSON is rejec
   const { page, ctx } = await open();
   await page.fill('#focusDate', '2026-10-14');
   await page.locator('#todayTasks .block-focus input[type=checkbox]').first().check();
-  assert.equal(await metric(page, '#mDone'), '1 / 268');
+  assert.equal(await metric(page, '#mDone'), '1 / 377');
   const [dl] = await Promise.all([page.waitForEvent('download'), page.click('#exportBtn')]);
   const path = await dl.path();
   const backup = JSON.parse(readFileSync(path, 'utf8'));
-  assert.ok(backup.tasks.length > 268);
+  assert.ok(backup.tasks.length > 377);
   assert.equal(backup.version, 2);
   assert.ok(backup.tasks.some((t) => t.block === 'light') && backup.tasks.some((t) => t.block === 'focus'), 'blocks are saved');
   assert.equal(backup.tasks.filter((t) => t.done).length, 1);
 
   await page.locator('#todayTasks .block-focus input[type=checkbox]').first().uncheck();
-  assert.equal(await metric(page, '#mDone'), '0 / 268');
+  assert.equal(await metric(page, '#mDone'), '0 / 377');
 
   await page.setInputFiles('#importFile', { name: 'bad.json', mimeType: 'application/json', buffer: Buffer.from('{not json') });
   await page.locator('.toast', { hasText: 'not a valid backup' }).last().waitFor();
   await page.setInputFiles('#importFile', { name: 'bad2.json', mimeType: 'application/json', buffer: Buffer.from('{"tasks":[]}') });
   await page.locator('.toast', { hasText: 'not a valid backup' }).last().waitFor();
-  assert.equal(await metric(page, '#mDone'), '0 / 268');
+  assert.equal(await metric(page, '#mDone'), '0 / 377');
 
   await page.setInputFiles('#importFile', path);
   await dialogOpen(page).waitFor();
   assert.match(await dialogOpen(page).textContent(), /Replace current data\?/);
   await dialogOpen(page).getByRole('button', { name: 'Cancel' }).click();
-  assert.equal(await metric(page, '#mDone'), '0 / 268');
+  assert.equal(await metric(page, '#mDone'), '0 / 377');
   await page.setInputFiles('#importFile', path);
   await dialogOpen(page).getByRole('button', { name: 'Import backup' }).click();
   await dialogGone(page);
-  assert.equal(await metric(page, '#mDone'), '1 / 268');
+  assert.equal(await metric(page, '#mDone'), '1 / 377');
   await ctx.close();
 });
 
@@ -789,7 +791,7 @@ await test('backup from the OLD single-file app (no planConfig/pinned) imports c
   await page.setInputFiles('#importFile', { name: 'old.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(old)) });
   await dialogOpen(page).getByRole('button', { name: 'Import backup' }).click();
   await dialogGone(page);
-  assert.equal(await metric(page, '#mDone'), '2 / 268');
+  assert.equal(await metric(page, '#mDone'), '2 / 377');
   await goto(page, 'calendar');
   assert.equal(await page.inputValue('#planStart'), '2026-10-12');
   await ctx.close();
@@ -803,13 +805,13 @@ await test('reset: cancel keeps data, confirm restores originals and the default
   await page.click('#resetBtn');
   await dialogOpen(page).getByRole('button', { name: 'Cancel' }).click();
   await goto(page, 'dashboard');
-  assert.equal(await metric(page, '#mDone'), '1 / 268');
+  assert.equal(await metric(page, '#mDone'), '1 / 377');
   await goto(page, 'settings');
   await page.click('#resetBtn');
   await dialogOpen(page).getByRole('button', { name: 'Reset everything' }).click();
   await dialogGone(page);
   await goto(page, 'dashboard');
-  assert.equal(await metric(page, '#mDone'), '0 / 268');
+  assert.equal(await metric(page, '#mDone'), '0 / 377');
   await ctx.close();
 });
 
@@ -817,7 +819,7 @@ await test('corrupt saved data in localStorage falls back to a working app', asy
   const t = await newPage();
   await t.page.addInitScript(() => localStorage.setItem('mbbsStudyCommandCenter.v1', '{"tasks": "oops"'));
   await t.page.goto(BASE);
-  assert.equal(await metric(t.page, '#mTasks'), '268');
+  assert.equal(await metric(t.page, '#mTasks'), '377');
   assert.deepEqual(t.problems, []);
   await t.ctx.close();
   const t2 = await newPage();
@@ -830,7 +832,7 @@ await test('corrupt saved data in localStorage falls back to a working app', asy
 
 await test('blocked localStorage: app still works and tells the user progress will not persist', async () => {
   const { page, ctx, problems } = await open({ blockStorage: true });
-  assert.equal(await metric(page, '#mTasks'), '268');
+  assert.equal(await metric(page, '#mTasks'), '377');
   await page.waitForSelector('#toasts .toast');
   assert.match((await allToasts(page)), /blocking local storage/);
   await goto(page, 'tasks');
@@ -1075,7 +1077,7 @@ await test('daily view: completing tasks updates block, day, week and dashboard 
   await goto(page, 'day');
   assert.equal(await page.locator('#dayBlocks .btask.done').count(), 0);
   await goto(page, 'dashboard');
-  assert.equal(await metric(page, '#mDone'), '0 / 268');
+  assert.equal(await metric(page, '#mDone'), '0 / 377');
   await ctx.close();
 });
 
@@ -1159,7 +1161,7 @@ await test('daily view: splitting a lecture creates labelled sessions, keeps the
   assert.match((await allToasts(page)), /Split into 2 sessions/);
   assert.match(await focusBlock(page).locator('.btask', { hasText: title }).first().textContent(), /Part 1\/2/);
   await goto(page, 'dashboard');
-  assert.equal(await metric(page, '#mTasks'), '268', 'a split lecture is still one lecture');
+  assert.equal(await metric(page, '#mTasks'), '377', 'a split lecture is still one lecture');
   await goto(page, 'tasks');
   await page.fill('#searchTask', title);
   const rows = page.locator('#taskTable tr');
@@ -1170,12 +1172,12 @@ await test('daily view: splitting a lecture creates labelled sessions, keeps the
   // completing only one part does not complete the lecture
   await rows.nth(0).getByRole('button', { name: /^Done:/ }).click();
   await goto(page, 'dashboard');
-  assert.equal(await metric(page, '#mDone'), '0 / 268');
+  assert.equal(await metric(page, '#mDone'), '0 / 377');
   await goto(page, 'tasks');
   await page.fill('#searchTask', title);
   await page.locator('#taskTable tr').nth(1).getByRole('button', { name: /^Done:/ }).click();
   await goto(page, 'dashboard');
-  assert.equal(await metric(page, '#mDone'), '1 / 268');
+  assert.equal(await metric(page, '#mDone'), '1 / 377');
   await ctx.close();
 });
 
@@ -1215,8 +1217,8 @@ await test('daily view: Edit changes runtime and type; Day settings can mark a d
   await page.fill('#weekDate', '2026-10-21');
   await page.locator('#weekDate').dispatchEvent('change');
   assert.match(await page.locator('#weekGrid .day.blocked').textContent(), /Holiday/);
-  // the moved lectures are still scheduled (nothing lost): all 266 remain placed
-  assert.match(await metric(page, '#planReport'), /266 \/ 268/);
+  // the moved lectures are still scheduled (nothing lost): all 271 remain placed
+  assert.match(await metric(page, '#planReport'), /271 \/ 377/);
   await toasts(page).last().waitFor({ state: 'attached' });
   await ctx.close();
 });
@@ -1325,7 +1327,7 @@ await test('migration: data saved by the old single-capacity version keeps its p
   assert.ok(await lightBlock(t.page).locator('.btask').count() >= 3);
   assert.ok(await focusBlock(t.page).locator('.btask').count() >= 2);
   await goto(t.page, 'dashboard');
-  assert.equal(await metric(t.page, '#mDone'), '2 / 268', 'completed work kept');
+  assert.equal(await metric(t.page, '#mDone'), '2 / 377', 'completed work kept');
   const stored = await t.page.evaluate(() => ({ cur: JSON.parse(localStorage.getItem('mbbsStudyCommandCenter.v1')), backup: localStorage.getItem('mbbsStudyCommandCenter.v1.pre-blocks-backup') }));
   assert.equal(stored.cur.version, 2);
   assert.ok(stored.backup && JSON.parse(stored.backup).tasks.length === 270, 'untouched copy of the old data');
@@ -1361,6 +1363,112 @@ await test('dashboard insights: subject bars, streak after completing a lecture,
   assert.equal(await page.evaluate(() => document.documentElement.dataset.theme), 'light');
   await page.reload();
   assert.equal(await page.evaluate(() => document.documentElement.dataset.theme), 'light');
+  await ctx.close();
+});
+
+// ---- day notes + viewer page -----------------------------------------------------------------
+
+await test('daily view: "Also done" notes can be added, validated, persisted, removed and undone', async () => {
+  const { page, ctx, problems } = await open({}, '#day/2026-10-14');
+  await page.click('#extraForm button');
+  assert.match(await page.textContent('#extraErr'), /Type what you did/);
+  await page.fill('#extraText', '40 MCQs on cardiology');
+  await page.click('#extraForm button');
+  assert.match(await page.textContent('#extraList'), /40 MCQs on cardiology/);
+  assert.equal(await page.inputValue('#extraText'), '');
+  await page.reload();
+  await page.waitForSelector('#extraList li');
+  assert.equal(await page.locator('#extraList li').count(), 1);
+  await page.goto(`${BASE}/#day/2026-10-15`);
+  assert.equal(await page.locator('#extraList li').count(), 0, 'notes belong to their own day');
+  await page.goto(`${BASE}/#day/2026-10-14`);
+  await page.click('#extraList [data-action="remove-extra"]');
+  assert.equal(await page.locator('#extraList li').count(), 0);
+  await page.click('#toasts .toast button');
+  assert.equal(await page.locator('#extraList li').count(), 1);
+  assert.deepEqual(problems, []);
+  await ctx.close();
+});
+
+/** Open view.html with a fake backend: the config module and the one database call are intercepted. */
+async function openViewer(snapshot, { hash = '#t=' + 'a'.repeat(43), viewport } = {}) {
+  const t = await newPage({ viewport });
+  await t.page.route('**/js/supabase-config.js', (r) => r.fulfill({ contentType: 'text/javascript', body: "export const supabaseConfig = { url: 'https://fake.supabase.co', anonKey: 'anon-key' };" }));
+  const calls = [];
+  await t.page.route('https://fake.supabase.co/**', (r) => { calls.push(r.request()); r.fulfill({ contentType: 'application/json', body: JSON.stringify(snapshot) }); });
+  await t.page.goto(`${BASE}/view.html${hash}`);
+  await t.page.waitForFunction(() => document.getElementById('app').getAttribute('aria-busy') === 'false');
+  return { ...t, calls };
+}
+
+const SNAP = {
+  v: 1, name: 'Asha', updatedAt: '2026-10-14T09:30:00.000Z', asOf: '2026-10-14', startsOn: '2026-10-12', done: 113, total: 270, pct: 42,
+  status: { code: 'slightly', behind: 2 }, today: { plannedLectures: 3, doneLectures: 2 }, streak: 6,
+  week: [0, 3, 4, 0, 5, 2, 2].map((count, i) => ({ iso: `2026-10-${String(8 + i).padStart(2, '0')}`, count })),
+  subjects: [{ subject: 'Anatomy', done: 20, total: 40, pct: 50 }, { subject: 'Physiology', done: 5, total: 50, pct: 10 }],
+  target: { date: '2026-12-20', daysLeft: 67 },
+  extras: [{ date: '2026-10-14', items: ['40 MCQs on cardiology', '<b>x</b>'] }],
+};
+
+await test('viewer page: big, simple summary with the right numbers and no way into the planner', async () => {
+  const { page, ctx, problems, calls } = await openViewer(SNAP);
+  assert.match(await page.textContent('h1'), /Asha’s study progress/);
+  assert.equal((await page.textContent('.big')).replace(/\s/g, ''), '42%');
+  assert.match(await page.textContent('.count'), /113 of 270 lectures done/);
+  assert.match(await page.textContent('.status'), /A little behind: 2 lectures/);
+  assert.match(await page.textContent('#h-today + .num'), /Yes/);
+  assert.match(await page.textContent('#h-streak + .num'), /6 days/);
+  assert.equal(await page.locator('.subj li').count(), 2);
+  assert.match(await page.textContent('#h-extras + .days'), /40 MCQs on cardiology/);
+  assert.match(await page.textContent('#h-extras + .days'), /<b>x<\/b>/, 'notes are shown as text, never as HTML');
+  assert.equal(await page.locator('a').count(), 0, 'no links anywhere, so nothing leads to the planner');
+  assert.equal(await page.locator('nav, input, select, textarea').count(), 0);
+  assert.match(await page.textContent('#updated'), /^Updated (just now|.+ ago)$/);
+  assert.equal(calls.length, 1);
+  assert.match(calls[0].url(), /rpc\/get_shared_progress$/);
+  assert.equal(calls[0].postDataJSON().p_token, 'a'.repeat(43));
+  const fontPx = await page.$eval('.big', (el) => parseFloat(getComputedStyle(el).fontSize));
+  assert.ok(fontPx >= 64, `headline number should be huge, got ${fontPx}px`);
+  assert.deepEqual(problems.filter((p) => !p.includes('fake.supabase')), []);
+  await ctx.close();
+});
+
+for (const scheme of ['light', 'dark']) {
+  await test(`viewer page: axe scan (${scheme}) and no horizontal scroll at 375px`, async () => {
+    const t = await newPage({ viewport: { width: 375, height: 800 }, colorScheme: scheme });
+    await t.page.route('**/js/supabase-config.js', (r) => r.fulfill({ contentType: 'text/javascript', body: "export const supabaseConfig = { url: 'https://fake.supabase.co', anonKey: 'k' };" }));
+    await t.page.route('https://fake.supabase.co/**', (r) => r.fulfill({ contentType: 'application/json', body: JSON.stringify(SNAP) }));
+    await t.page.goto(`${BASE}/view.html#t=${'b'.repeat(43)}`);
+    await t.page.waitForSelector('.big');
+    await t.page.addScriptTag({ content: AXE });
+    const v = await t.page.evaluate(async () => (await window.axe.run(document, { runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'best-practice'] } })).violations.map((x) => `${x.id}: ${x.nodes.length}`));
+    assert.deepEqual(v, []);
+    assert.ok(await t.page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), 'no horizontal scroll');
+    await t.ctx.close();
+  });
+}
+
+await test('viewer page: wrong, switched-off, short or missing links show a calm message and never data', async () => {
+  const off = await openViewer(null);
+  assert.match(await off.page.textContent('#app'), /not active any more/);
+  await off.ctx.close();
+  const empty = await openViewer({});
+  assert.match(await empty.page.textContent('#app'), /Nothing has been shared yet/);
+  await empty.ctx.close();
+  const short = await openViewer(SNAP, { hash: '#t=abc' });
+  assert.match(await short.page.textContent('#app'), /incomplete/);
+  assert.equal(short.calls.length, 0, 'a malformed link never calls the backend');
+  await short.ctx.close();
+  const none = await openViewer(SNAP, { hash: '' });
+  assert.match(await none.page.textContent('#app'), /incomplete/);
+  await none.ctx.close();
+});
+
+await test('viewer page: without a configured backend it says so instead of breaking', async () => {
+  const { page, ctx } = await newPage();
+  await page.goto(`${BASE}/view.html#t=${'c'.repeat(43)}`);
+  await page.waitForFunction(() => document.getElementById('app').getAttribute('aria-busy') === 'false');
+  assert.match(await page.textContent('#app'), /not set up yet/);
   await ctx.close();
 });
 

@@ -12,10 +12,10 @@ const C = { ...DEFAULT_PLAN_CONFIG };
 const fresh = () => INITIAL_TASKS.map((t) => ({ ...t, scheduledDate: null, selected: false }));
 
 test('embedded data is sane', () => {
-  assert.equal(INITIAL_TASKS.length, 270);
-  assert.equal(new Set(INITIAL_TASKS.map((t) => t.id)).size, 270);
+  assert.equal(INITIAL_TASKS.length, 377);
+  assert.equal(new Set(INITIAL_TASKS.map((t) => t.id)).size, 377);
   assert.ok(INITIAL_TASKS.every((t) => t.durationSec > 0 && t.title && t.subject));
-  assert.equal(INITIAL_TASKS.filter((t) => t.type === 'dataset_placeholder').length, 2);
+  assert.equal(INITIAL_TASKS.filter((t) => t.type === 'dataset_placeholder').length, 0);
 });
 
 test('plannedSec applies speed, annotation and recall', () => {
@@ -85,7 +85,7 @@ test('generatePlan: default plan respects trip, backstop, capacity and never mut
   const vids = tasks.filter((t) => t.type === 'video');
   const scheduled = vids.filter((t) => t.scheduledDate);
   assert.equal(scheduled.length + backlog.length, vids.length, 'every video is either placed or reported');
-  assert.equal(meta.placed, scheduled.length);
+  assert.ok(meta.placed <= scheduled.length && scheduled.length - meta.placed <= 2 * meta.splitLectures, 'placed counts lectures; split sessions add parts');
   assert.ok(scheduled.length > 200, 'most of the library fits');
   for (const t of tasks) {
     if (!t.scheduledDate) continue;
@@ -136,7 +136,7 @@ test('generatePlan preserves completed generated blocks across regeneration', ()
 
 test('generatePlan reports overflow instead of hiding it', () => {
   const res = generatePlan(fresh(), { ...C, end: '2026-10-20', backstop: '2026-10-25' }, S);
-  assert.ok(res.backlog.length > 150 && res.backlog.length < 268);
+  assert.ok(res.backlog.length > 150 && res.backlog.length < 377);
   const ids = new Set(fresh().map((t) => t.id));
   assert.ok(res.backlog.every((b) => b.reason && ids.has(b.taskId)));
 });

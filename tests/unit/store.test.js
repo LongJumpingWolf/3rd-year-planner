@@ -6,7 +6,7 @@ import { toCSV } from '../../js/utils.js';
 
 test('freshState has the full library and defaults', () => {
   const s = freshState();
-  assert.equal(s.tasks.length, 270);
+  assert.equal(s.tasks.length, 377);
   assert.equal(s.settings.annotation, 25);
   assert.equal(s.planConfig.start, '2026-10-12');
   assert.equal(s.version, 2);
@@ -17,7 +17,7 @@ test('sanitizeState round-trips a real state', () => {
   s.tasks[0].done = true;
   s.tasks[1].scheduledDate = '2026-10-13';
   const out = sanitizeState(JSON.parse(JSON.stringify(s)));
-  assert.equal(out.tasks.length, 270);
+  assert.equal(out.tasks.length, 377);
   assert.equal(out.tasks[0].done, true);
   assert.equal(out.tasks[1].scheduledDate, '2026-10-13');
 });
@@ -84,4 +84,39 @@ test('tasksFromCSV is case-insensitive about headers and ignores junk durations'
   const { rows } = tasksFromCSV('Title,DurationSec\nHello,abc\nWorld,45', []);
   assert.equal(rows[0].durationSec, 1200);
   assert.equal(rows[1].durationSec, 45);
+});
+
+test('library: ENT and FMT ship as full lecture lists (verified ENT total, ordered ids, a category each)', async () => {
+  const { INITIAL_TASKS } = await import('../../js/data.js');
+  const ent = INITIAL_TASKS.filter((t) => t.subject === 'ENT');
+  const fmt = INITIAL_TASKS.filter((t) => t.subject === 'FMT');
+  assert.equal(ent.length, 65);
+  assert.equal(fmt.length, 44);
+  assert.equal(ent.reduce((s, t) => s + t.durationSec, 0), 47 * 3600 + 23 * 60, 'ENT adds up to the recorded 47h 23m');
+  assert.deepEqual(ent.map((t) => t.id), Array.from({ length: 65 }, (_, i) => `ENT-${String(i + 1).padStart(2, '0')}`));
+  assert.ok([...ent, ...fmt].every((t) => t.type === 'video' && t.category && t.durationSec > 0));
+});
+
+test('old saved data with the ENT/FMT placeholders gets the real lectures, flagged for one plan rebuild', () => {
+  const old = JSON.parse(JSON.stringify(freshState()));
+  old.tasks = old.tasks.filter((t) => t.subject !== 'ENT' && t.subject !== 'FMT');
+  old.tasks.push({ id: 'ENT-DATA', subject: 'ENT', category: 'Data status', title: 'placeholder', durationSec: 100, type: 'dataset_placeholder' });
+  old.tasks.push({ id: 'FMT-DATA', subject: 'FMT', category: 'Data status', title: 'placeholder', durationSec: 100, type: 'dataset_placeholder' });
+  old.tasks.find((t) => t.id === 'PSM-01').done = true;
+  const out = sanitizeState(old);
+  assert.equal(out.tasks.length, 377);
+  assert.ok(!out.tasks.some((t) => t.type === 'dataset_placeholder'));
+  assert.equal(out.tasks.filter((t) => t.fresh).length, 109);
+  assert.equal(out.tasks.find((t) => t.id === 'PSM-01').done, true, 'existing progress is untouched');
+  assert.ok(!out.tasks.find((t) => t.id === 'PSM-01').fresh);
+});
+
+test('placeholder is left alone when the saved data already has its own lectures for that subject', () => {
+  const old = JSON.parse(JSON.stringify(freshState()));
+  old.tasks = old.tasks.filter((t) => t.subject !== 'ENT');
+  old.tasks.push({ id: 'ENT-DATA', subject: 'ENT', category: 'Data status', title: 'placeholder', durationSec: 100, type: 'dataset_placeholder' });
+  old.tasks.push({ id: 'MY-ENT-1', subject: 'ENT', category: 'Ear', title: 'My own import', durationSec: 600, type: 'video' });
+  const out = sanitizeState(old);
+  assert.equal(out.tasks.filter((t) => t.subject === 'ENT').length, 2, 'no duplicates added');
+  assert.ok(out.tasks.some((t) => t.id === 'ENT-DATA'));
 });

@@ -21,6 +21,7 @@
     <p>Plan, track and reschedule your study without the stress.</p>
   </div>
   <div class="top-actions" role="group" aria-label="Backup and help">
+    <button type="button" id="accountBtn" aria-haspopup="dialog">Sign in with Google</button>
     <button type="button" id="exportBtn">Export backup</button>
     <button type="button" id="importBtn">Import backup</button>
     <button type="button" id="themeBtn" title="Switch between automatic, light and dark theme">Theme: Auto</button>
@@ -51,7 +52,7 @@
         <div><h2 id="h-dashboard" tabindex="-1">Dashboard</h2><p class="sub">Your plan should adapt to reality, not punish you for it.</p></div>
         <div class="field inline"><label for="focusDate">View date</label><input type="date" id="focusDate"></div>
       </div>
-      <p class="notice"><strong>Planning status:</strong> the scheduler uses every title-level entry in the library, keeps the verified FMT/ENT totals visible without inventing lecture titles, and flags estimated durations. The trip is protected and the finish target and hard backstop are shown on the calendar page.</p>
+      <p class="notice"><strong>Planning status:</strong> the scheduler uses every title-level entry in the library, includes the full FMT (44) and ENT (65) lecture lists, and flags estimated durations. The trip is protected and the finish target and hard backstop are shown on the calendar page.</p>
       <div class="cards" role="list" aria-label="Key numbers">
         <div class="card" role="listitem"><div class="metric-label">Indexed lectures</div><div class="metric" id="mTasks">—</div><div class="metric-note" id="mSubjects"></div></div>
         <div class="card" role="listitem"><div class="metric-label">Completed</div><div class="metric" id="mDone">—</div><div class="progress" role="progressbar" aria-label="Completed lectures" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="pDoneBar"><span id="pDone"></span></div></div>
@@ -109,7 +110,7 @@
           <span class="muted small">Sessions finished today: <strong id="timerCount">0</strong></span>
         </div>
       </section>
-      <p class="footer">Progress is saved in this browser on this device. Export a backup regularly; there is no cloud sync.</p>
+      <p class="footer">Progress is saved in this browser on this device. Export a backup regularly, or sign in with Google (Settings) to sync across devices.</p>
     </section>
 
     <!-- DAILY VIEW -->
@@ -127,6 +128,17 @@
       </div>
       <p class="notice" id="dayNotice" hidden></p>
       <div class="kpi-row" id="daySummary" aria-live="polite"></div>
+      <section class="panel" aria-labelledby="h-extras" id="dayExtras">
+        <h3 id="h-extras">Also done today <span class="muted small">(shown on your viewer link)</span></h3>
+        <p class="small muted">Add anything that is not a lecture, such as "40 MCQs", "revised pharmacology notes" or "hospital posting". Your viewer sees these as short lines under the day.</p>
+        <ul class="extras" id="extraList"></ul>
+        <form class="row" id="extraForm" novalidate>
+          <label class="sr-only" for="extraText">What else did you do on this day?</label>
+          <input id="extraText" type="text" maxlength="100" placeholder="e.g. 40 MCQs on cardiology" autocomplete="off">
+          <button type="submit">Add note</button>
+        </form>
+        <p class="error-text" id="extraErr" role="alert" hidden></p>
+      </section>
       <div class="blocks-grid" id="dayBlocks"></div>
     </section>
 
@@ -284,7 +296,7 @@
         <ul class="bullets">
           <li>Missing durations are estimated at 20 minutes and clearly flagged.</li>
           <li>Potential duplicates stay separate until you confirm them.</li>
-          <li>FMT (44 videos / 33 h 56 min) and ENT (65 / 47 h 23 min) totals are kept, but their title-level lists are not in the embedded data. They are never invented or treated as single videos.</li>
+          <li>FMT (44 lectures, 34 h 36 min as listed) and ENT (65 lectures, 47 h 23 min) are in the library with every title and duration. The FMT list adds up to 40 minutes more than the 33 h 56 min total recorded earlier, so one FMT duration may be off; edit it in the Task library if you spot it.</li>
           <li>PSM entries 49 and 50 are a possible duplicate and remain separate.</li>
           <li>Posting catch-up uses a provisional 3 hours per missed weekday; delete those blocks if your real missed sessions differ.</li>
           <li>The official timetable and your reported vacation dates differ; the scheduler uses your 1–13 Nov break.</li>
@@ -334,6 +346,27 @@
           <li>Post-end preparation: protect the week before each post-end examination.</li>
           <li>Daily routine: home around 5:45 PM, rested by about 6:30 PM, bedtime by 10:30 PM. Focused work is scheduled from 6:30 PM with breaks and finishes before bedtime where possible.</li>
         </ul>
+      </section>
+      <section class="panel" aria-labelledby="h-sync">
+        <h3 id="h-sync">Cloud sync</h3>
+        <p class="small muted" id="syncStatus" role="status"></p>
+        <button type="button" class="primary" id="syncBtn">Sign in with Google</button>
+      </section>
+      <section class="panel" aria-labelledby="h-viewer">
+        <h3 id="h-viewer">Viewer link</h3>
+        <p class="small muted">Share a simple, big-print page with a parent or friend. They see only numbers: overall progress, on track or behind, today, streak, this week, lectures per subject and your "Also done" notes. They never see lecture titles, your planner or any controls. Anyone who has the link can open it, so share it only with people you trust.</p>
+        <p class="small" id="viewerState" role="status"></p>
+        <div class="row" id="viewerLinkRow" hidden>
+          <label class="sr-only" for="viewerUrl">Viewer link</label>
+          <input id="viewerUrl" type="text" readonly>
+          <button type="button" id="viewerCopy">Copy link</button>
+          <a id="viewerOpen" href="#" target="_blank" rel="noopener noreferrer">Preview as viewer</a>
+        </div>
+        <div class="row actions">
+          <button type="button" class="primary" id="viewerCreate">Create viewer link</button>
+          <button type="button" id="viewerNew" hidden>Make a new link…</button>
+          <button type="button" id="viewerOff" hidden>Turn off…</button>
+        </div>
       </section>
       <section class="panel danger-zone" aria-labelledby="h-danger">
         <h3 id="h-danger">Reset</h3>

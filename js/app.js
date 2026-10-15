@@ -2,6 +2,10 @@
 import * as actions from './actions.js';
 import { findTask, loadState, state, storageAvailable, subscribe } from './store.js';
 import { dateISO, isValidISO } from './utils.js';
+import { initCloud } from './cloud.js';
+import { initShare } from './share.js';
+import { initAccount } from './ui/account.js';
+import { initViewerLink } from './ui/viewerLink.js';
 import { renderAudit } from './ui/audit.js';
 import { renderCalendar, shiftWeek } from './ui/calendar.js';
 import { renderDashboard } from './ui/dashboard.js';
@@ -103,6 +107,11 @@ document.addEventListener('click', (e) => {
     case 'split': actions.splitTaskAction(id); break;
     case 'auto-place': actions.autoPlaceAction(id); break;
     case 'add-to-date': actions.addToDate(id, el.dataset.block || 'focus'); break;
+    case 'remove-extra': {
+      const [iso, i] = id.split(':');
+      actions.removeExtra(iso, Number(i));
+      break;
+    }
     case 'fix-overflow': actions.fixOverflowAction(id, el.dataset.block); break;
     default: break;
   }
@@ -162,6 +171,15 @@ $('#dayDate').addEventListener('change', (e) => {
 $('#prevDay').addEventListener('click', () => { shiftDay(-1); syncDayHash(); renderDay(); });
 $('#nextDay').addEventListener('click', () => { shiftDay(1); syncDayHash(); renderDay(); });
 $('#todayDay').addEventListener('click', () => { setDay(dateISO(new Date())); syncDayHash(); renderDay(); });
+$('#extraForm').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const input = $('#extraText');
+  const err = actions.addExtra(currentDayISO(), input.value);
+  $('#extraErr').textContent = err;
+  $('#extraErr').hidden = !err;
+  if (!err) input.value = '';
+  input.focus();
+});
 $('#daySettingsBtn').addEventListener('click', () => actions.dayDialog(currentDayISO()));
 
 // ---- calendar ----------------------------------------------------------------------------------
@@ -312,6 +330,11 @@ if (!state.planMeta && !state.tasks.some((t) => t.scheduledDate)) {
 if (!storageAvailable()) {
   toast('Your browser is blocking local storage, so progress will not be saved. Use Export backup to keep a copy.', { type: 'warn', ms: 0 });
 }
+
+initAccount();
+initViewerLink();
+initShare();
+initCloud();
 
 // Offline support: cache the app shell (skipped silently where service workers are unavailable).
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
