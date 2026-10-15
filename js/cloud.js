@@ -1,6 +1,6 @@
 // Google sign-in + cross-device sync on Supabase. The SDK is loaded lazily from the CDN, and only when js/supabase-config.js is
 // filled in, so the app stays fully offline-first: localStorage is still what the UI reads, the cloud copy is a mirror.
-import {   } from './supabase-config.js';
+import { supabaseConfig } from './supabase-config.js';
 import { commit, freshState, replaceState, sanitizeState, state, subscribe } from './store.js';
 import { decideSync, describeState, hasLocalProgress } from './syncLogic.js';
 import { openDialog } from './ui/dialogs.js';
