@@ -38,6 +38,9 @@ function parseHash(h = location.hash) {
   return { name: PAGES[name] ? name : null, arg };
 }
 const pageFromHash = () => parseHash().name || 'dashboard';
+// Wide enough for the Daily view's two columns (Light | Focused): open on it by default, since that is the working screen.
+const TWO_COLUMNS = '(min-width: 901px)';
+const landingPage = () => parseHash().name || (window.matchMedia?.(TWO_COLUMNS).matches ? 'day' : 'dashboard');
 
 function showPage(name, { moveFocus = true, arg } = {}) {
   current = PAGES[name] ? name : 'dashboard';
@@ -319,7 +322,7 @@ document.addEventListener('keydown', (e) => {
 loadState();
 $('#focusDate').value = dateISO(new Date());
 $('#weekDate').value = $('#focusDate').value;
-showPage(pageFromHash(), { moveFocus: false });
+showPage(landingPage(), { moveFocus: false });
 if (!state.planMeta && !state.tasks.some((t) => t.scheduledDate)) {
   // First visit: build the default plan so the calendar is not empty.
   actions.runGenerate({}, { silent: true });

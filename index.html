@@ -50,7 +50,10 @@
     <section class="page" id="page-dashboard" aria-labelledby="h-dashboard" hidden>
       <div class="heading">
         <div><h2 id="h-dashboard" tabindex="-1">Dashboard</h2><p class="sub">Your plan should adapt to reality, not punish you for it.</p></div>
-        <div class="field inline"><label for="focusDate">View date</label><input type="date" id="focusDate"></div>
+        <div class="row">
+          <button type="button" id="shareBtn" aria-haspopup="dialog" hidden>Share progress</button>
+          <div class="field inline"><label for="focusDate">View date</label><input type="date" id="focusDate"></div>
+        </div>
       </div>
       <p class="notice"><strong>Planning status:</strong> the scheduler uses every title-level entry in the library, includes the full FMT (44) and ENT (65) lecture lists, and flags estimated durations. The trip is protected and the finish target and hard backstop are shown on the calendar page.</p>
       <div class="cards" role="list" aria-label="Key numbers">

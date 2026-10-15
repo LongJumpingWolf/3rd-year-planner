@@ -20,10 +20,12 @@ export function decideSync({ meta, uid, remoteRev, localHasProgress }) {
 }
 
 export function hasLocalProgress(state, libraryTaskCount) {
-  return state.tasks.length !== libraryTaskCount || state.tasks.some((t) => t.done);
+  // Planning blocks (revision, previews) and split sessions of one lecture come with every plan, so they are not the user's own work.
+  const own = state.tasks.filter((t) => !t.generated);
+  return new Set(own.map((t) => t.parentId || t.id)).size !== libraryTaskCount || own.some((t) => t.done);
 }
 
 export function describeState(s) {
-  const done = s.tasks.filter((t) => t.done).length;
-  return `${done} of ${s.tasks.length} tasks done`;
+  const lectures = s.tasks.filter((t) => t.type === 'video');
+  return `${lectures.filter((t) => t.done).length} of ${lectures.length} lectures done`;
 }

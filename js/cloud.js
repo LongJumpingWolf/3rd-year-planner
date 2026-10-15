@@ -158,10 +158,10 @@ async function resolveConflict(row) {
           <label><input type="radio" name="pick" value="device"> <span><strong>Keep this device</strong><br><span class="small muted">${describeState(state)}. Replaces the cloud copy.</span></span></label>
         </fieldset>
         <p class="small muted">Tip: use Export backup first if you are unsure. Nothing is changed until you continue.</p>`,
-      onSubmit: (v) => (v.pick ? v.pick : 'Choose one of the two options.'),
+      onSubmit: (v) => (v.pick ? { pick: v.pick } : 'Choose one of the two options.'), // a bare string would be shown as an error
     });
-    if (choice === 'cloud') applyRemote(remote);
-    else if (choice === 'device') await push({ force: true });
+    if (choice?.pick === 'cloud') applyRemote(remote);
+    else if (choice?.pick === 'device') await push({ force: true });
     else {
       paused = true;
       setStatus('paused');

@@ -32,3 +32,12 @@ test('hasLocalProgress: untouched library is not progress; ticked or added tasks
   s.tasks.pop();
   assert.equal(hasLocalProgress(s, n), true);
 });
+
+test('hasLocalProgress ignores auto-generated planning blocks', () => {
+  const s = freshState();
+  const n = s.tasks.length;
+  s.tasks.push({ id: 'GEN-1', generated: true, type: 'custom', done: false }, { id: 'GEN-2', generated: true, type: 'custom', done: true });
+  assert.equal(hasLocalProgress(s, n), false);
+  s.tasks.push({ id: 'PSM-01-p2', parentId: s.tasks[0].id, type: 'video', done: false });
+  assert.equal(hasLocalProgress(s, n), false, 'split sessions of one lecture are not new work');
+});

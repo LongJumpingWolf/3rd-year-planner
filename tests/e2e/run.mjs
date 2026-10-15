@@ -47,7 +47,7 @@ async function newPage({ viewport = { width: 1280, height: 900 }, colorScheme = 
   return { page, ctx, problems };
 }
 
-async function open(opts, hash = '') {
+async function open(opts, hash = '#dashboard') {
   const t = await newPage(opts);
   await t.page.goto(`${BASE}/${hash}`);
   await t.page.waitForSelector('.page:not([hidden])');
@@ -143,7 +143,7 @@ await test('routing: nav links, aria-current, heading focus, back/forward, deep 
   assert.equal(await deep.page.locator('#page-settings').isVisible(), true, 'unrelated hashes (in-page anchors) do not change the page');
   await deep.ctx.close();
   const bad = await open({}, '#nonsense');
-  assert.equal(await bad.page.locator('#page-dashboard').isVisible(), true);
+  assert.equal(await bad.page.locator('#page-day').isVisible(), true, 'an unknown hash falls back to the landing page (Daily view on wide screens)');
   await bad.ctx.close();
 });
 
@@ -818,13 +818,13 @@ await test('reset: cancel keeps data, confirm restores originals and the default
 await test('corrupt saved data in localStorage falls back to a working app', async () => {
   const t = await newPage();
   await t.page.addInitScript(() => localStorage.setItem('mbbsStudyCommandCenter.v1', '{"tasks": "oops"'));
-  await t.page.goto(BASE);
+  await t.page.goto(`${BASE}/#dashboard`);
   assert.equal(await metric(t.page, '#mTasks'), '377');
   assert.deepEqual(t.problems, []);
   await t.ctx.close();
   const t2 = await newPage();
   await t2.page.addInitScript(() => localStorage.setItem('mbbsStudyCommandCenter.v1', JSON.stringify({ tasks: [{ id: 'x', title: 't', durationSec: 60, type: 'video', scheduledDate: 'not-a-date' }], settings: { speed: 'abc' } })));
-  await t2.page.goto(BASE);
+  await t2.page.goto(`${BASE}/#dashboard`);
   assert.equal(await metric(t2.page, '#mTasks'), '1');
   assert.deepEqual(t2.problems, []);
   await t2.ctx.close();
@@ -967,7 +967,7 @@ await test('touch targets: primary controls are at least 32px tall (24px WCAG mi
 await test('reduced motion: no transitions on progress bars', async () => {
   const t = await newPage();
   await t.page.emulateMedia({ reducedMotion: 'reduce' });
-  await t.page.goto(BASE);
+  await t.page.goto(`${BASE}/#dashboard`);
   const dur = await t.page.evaluate(() => getComputedStyle(document.querySelector('#pDone')).transitionDuration);
   assert.match(dur, /^0s$/);
   await t.ctx.close();
@@ -1469,6 +1469,183 @@ await test('viewer page: without a configured backend it says so instead of brea
   await page.goto(`${BASE}/view.html#t=${'c'.repeat(43)}`);
   await page.waitForFunction(() => document.getElementById('app').getAttribute('aria-busy') === 'false');
   assert.match(await page.textContent('#app'), /not set up yet/);
+  await ctx.close();
+});
+
+
+// ---- wide-screen landing, Google sync conflict dialog, dashboard share button -------------------------
+
+await test('landing page: opens the Daily view when two columns fit, the Dashboard on narrow screens, and honours an explicit link', async () => {
+  const wide = await newPage({ viewport: { width: 1280, height: 900 } });
+  await wide.page.goto(BASE);
+  await wide.page.waitForSelector('.page:not([hidden])');
+  assert.equal(await wide.page.locator('.page:not([hidden])').getAttribute('id'), 'page-day');
+  assert.equal(await wide.page.locator('#dayBlocks .block').count(), 2, 'Light and Focused side by side');
+  await wide.page.goto(`${BASE}/#dashboard`);
+  await wide.page.reload();
+  assert.equal(await wide.page.locator('.page:not([hidden])').getAttribute('id'), 'page-dashboard', 'an explicit link wins');
+  await wide.ctx.close();
+  const narrow = await newPage({ viewport: { width: 375, height: 800 } });
+  await narrow.page.goto(BASE);
+  await narrow.page.waitForSelector('.page:not([hidden])');
+  assert.equal(await narrow.page.locator('.page:not([hidden])').getAttribute('id'), 'page-dashboard');
+  await narrow.ctx.close();
+});
+
+/** A tiny in-memory stand-in for the Supabase SDK: one signed-in user and one row per table, with a log of every write. */
+const FAKE_SDK = `
+export function createClient() {
+  const db = window.__db;
+  const table = (name) => {
+    const f = { op: 'select', filters: {}, body: null };
+    async function run() {
+      const row = db[name];
+      if (f.op === 'select') return { data: row ? { ...row } : null, error: null };
+      db.calls.push({ table: name, op: f.op, body: f.body, filters: { ...f.filters } });
+      if (f.op === 'insert') { if (row) return { data: null, error: { code: '23505' } }; db[name] = { ...f.body }; return { data: null, error: null }; }
+      if (f.op === 'upsert') { db[name] = { ...(row || {}), ...f.body }; return { data: null, error: null }; }
+      if (f.op === 'update') { if (row && (f.filters.rev === undefined || row.rev === f.filters.rev)) { db[name] = { ...row, ...f.body }; return { data: [{ rev: db[name].rev }], error: null }; } return { data: [], error: null }; }
+      return { data: null, error: null };
+    }
+    const api = {
+      select() { return api; },
+      eq(k, v) { f.filters[k] = v; return api; },
+      insert(b) { f.op = 'insert'; f.body = b; return api; },
+      update(b) { f.op = 'update'; f.body = b; return api; },
+      upsert(b) { f.op = 'upsert'; f.body = b; return api; },
+      maybeSingle() { return run(); },
+      then(res, rej) { return run().then(res, rej); },
+    };
+    return api;
+  };
+  return {
+    from: table,
+    auth: {
+      onAuthStateChange(cb) { setTimeout(() => cb(db.user ? 'INITIAL_SESSION' : 'SIGNED_OUT', db.user ? { user: db.user } : null), 0); return { data: { subscription: {} } }; },
+      signInWithOAuth: async () => ({ error: null }),
+      signOut: async () => ({}),
+    },
+    channel() { const c = { on() { return c; }, subscribe() { return c; } }; return c; },
+    removeChannel() {},
+  };
+}`;
+
+const { freshState: freshForTest } = await import('../../js/store.js');
+const stateWithDone = (n) => {
+  const st = freshForTest();
+  st.tasks.filter((t) => t.type === 'video').slice(0, n).forEach((t) => { t.done = true; t.doneAt = '2026-10-14'; });
+  return st;
+};
+const doneInStorage = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('mbbsStudyCommandCenter.v1')).tasks.filter((t) => t.type === 'video' && t.done).length);
+
+/** Open the app with cloud sync on, a fake backend, and chosen local / cloud data. */
+async function openSynced({ local, cloud, signedIn = true, hash = '#dashboard' }) {
+  const t = await newPage();
+  await t.page.route('**/js/supabase-config.js', (r) => r.fulfill({ contentType: 'text/javascript', body: "export const supabaseConfig = { url: 'https://fake.supabase.co', anonKey: 'k' };" }));
+  await t.page.route(/cdn\.jsdelivr\.net\/npm\/@supabase\/supabase-js/, (r) => r.fulfill({ contentType: 'text/javascript', body: FAKE_SDK }));
+  await t.page.addInitScript(({ local: l, cloud: c, signedIn: si }) => {
+    window.__db = {
+      calls: [],
+      user: si ? { id: 'u1', email: 'asha@example.com', user_metadata: { full_name: 'Asha K' } } : null,
+      viewer_share: null,
+      user_state: c ? { user_id: 'u1', state: c, rev: 5, updated_at: '2026-10-15T08:00:00Z' } : null,
+    };
+    if (l && !localStorage.getItem('mbbsStudyCommandCenter.v1')) localStorage.setItem('mbbsStudyCommandCenter.v1', JSON.stringify(l));
+  }, { local, cloud, signedIn });
+  await t.page.goto(`${BASE}/${hash}`);
+  await t.page.waitForSelector('.page:not([hidden])');
+  return t;
+}
+const writes = (page, table = 'user_state') => page.evaluate((tb) => window.__db.calls.filter((c) => c.table === tb), table);
+
+await test('sync conflict: Continue without a choice asks for one; choosing "cloud" really replaces this device\'s data', async () => {
+  const { page, ctx, problems } = await openSynced({ local: stateWithDone(1), cloud: stateWithDone(3) });
+  await page.waitForSelector('dialog[open]');
+  assert.match(await page.locator('dialog').textContent(), /3 of 377 lectures done/, 'shows lecture counts, not generated blocks');
+  assert.match(await page.locator('dialog').textContent(), /1 of 377 lectures done/);
+  await page.click('dialog button[type=submit]');
+  assert.match(await page.locator('dialog .error-text').textContent(), /Choose one of the two options/);
+  await page.check('dialog input[value=cloud]');
+  await page.click('dialog button[type=submit]');
+  await dialogGone(page);
+  assert.equal(await doneInStorage(page), 3, 'this device now holds the cloud copy');
+  assert.equal(await metric(page, '#mDone'), '3 / 377', 'and the screen shows it');
+  assert.equal((await writes(page)).length, 0, 'choosing cloud uploads nothing');
+  assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('mbbsSyncMeta')).rev), 5);
+  await page.reload();
+  await page.waitForSelector('.page:not([hidden])');
+  assert.equal(await doneInStorage(page), 3, 'still the cloud copy after a reload');
+  assert.equal(await page.locator('dialog[open]').count(), 0, 'no second prompt: both sides now agree');
+  assert.deepEqual(problems, []);
+  await ctx.close();
+});
+
+await test('sync conflict: choosing "keep this device" uploads this device\'s data and leaves it untouched', async () => {
+  const { page, ctx } = await openSynced({ local: stateWithDone(1), cloud: stateWithDone(3) });
+  await page.waitForSelector('dialog[open]');
+  await page.check('dialog input[value=device]');
+  await page.click('dialog button[type=submit]');
+  await dialogGone(page);
+  await page.waitForFunction(() => window.__db.calls.some((c) => c.table === 'user_state'));
+  const w = await writes(page);
+  assert.equal(w.length, 1);
+  assert.equal(w[0].op, 'upsert');
+  assert.equal(w[0].body.rev, 6);
+  assert.equal(w[0].body.state.tasks.filter((t) => t.type === 'video' && t.done).length, 1);
+  assert.equal(await doneInStorage(page), 1);
+  await ctx.close();
+});
+
+await test('sync conflict: "Decide later" changes nothing on either side', async () => {
+  const { page, ctx } = await openSynced({ local: stateWithDone(1), cloud: stateWithDone(3) });
+  await page.waitForSelector('dialog[open]');
+  await page.click('dialog [data-cancel]');
+  await dialogGone(page);
+  assert.equal(await doneInStorage(page), 1);
+  assert.equal((await writes(page)).length, 0);
+  assert.match(await page.textContent('#accountBtn'), /Resolve sync/);
+  await ctx.close();
+});
+
+await test('a new device with no progress takes the cloud copy without asking', async () => {
+  const { page, ctx } = await openSynced({ local: null, cloud: stateWithDone(3) });
+  await page.waitForFunction(() => document.querySelector('#mDone')?.textContent === '3 / 377');
+  assert.equal(await page.locator('dialog[open]').count(), 0);
+  assert.equal(await doneInStorage(page), 3);
+  await ctx.close();
+});
+
+await test('dashboard "Share progress": needs sign-in first, then creates the link and shows it ready to copy', async () => {
+  const out = await openSynced({ local: null, cloud: null, signedIn: false });
+  assert.equal(await out.page.isVisible('#shareBtn'), true);
+  await out.page.click('#shareBtn');
+  assert.match(await allToasts(out.page), /Sign in with Google first/);
+  await out.ctx.close();
+
+  const { page, ctx, problems } = await openSynced({ local: null, cloud: null });
+  await page.waitForFunction(() => /Signed in/.test(document.querySelector('#accountBtn').textContent));
+  await page.waitForTimeout(1500);
+  await page.click('#shareBtn');
+  await page.waitForSelector('dialog[open] #shareUrl');
+  const url = await page.inputValue('#shareUrl');
+  assert.ok(url.startsWith(`${BASE}/view.html#t=`), url);
+  assert.ok(url.split('#t=')[1].length >= 32);
+  const w = await writes(page, 'viewer_share');
+  assert.equal(w.length, 1);
+  assert.equal(w[0].body.enabled, true);
+  assert.equal(w[0].body.token, url.split('#t=')[1]);
+  assert.ok(!JSON.stringify(w[0].body.snapshot).includes('Active recall'), 'only numbers are shared');
+  await page.click('dialog [data-cancel]');
+  await page.click('#shareBtn');
+  assert.equal(await page.inputValue('#shareUrl'), url, 'the same link is shown again, not a new one');
+  assert.equal((await writes(page, 'viewer_share')).length, 1);
+  assert.deepEqual(problems, []);
+  await ctx.close();
+});
+
+await test('the Share progress button is hidden when cloud sync is not set up', async () => {
+  const { page, ctx } = await open();
+  assert.equal(await page.isVisible('#shareBtn'), false);
   await ctx.close();
 });
 

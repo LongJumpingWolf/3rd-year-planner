@@ -55,12 +55,16 @@ How it behaves: each account stores one row. Edits upload about 1.5 seconds afte
 
 ## Viewer link (for a parent or friend)
 
-Settings > **Viewer link** creates a secret link to a separate, read-only page (`view.html`) in big print: overall progress, on track / behind, whether you studied today, streak, the last 7 days, lectures per subject, a countdown and your own **Also done** notes (add them in the Daily view, under each day).
+The Dashboard's **Share progress** button (or Settings > **Viewer link**) creates a secret link to a separate, read-only page (`view.html`) in big print: overall progress, on track / behind, whether you studied today, streak, the last 7 days, lectures per subject, a countdown and your own **Also done** notes (add them in the Daily view, under each day).
 
 - Run [supabase/viewer.sql](supabase/viewer.sql) once in the Supabase SQL editor (after `schema.sql`), then sign in and press **Create viewer link**.
 - The viewer sees **numbers only**: no lecture titles, no settings, no plan, no controls, and the page has no link to the planner. The summary is stored in its own table, so the link cannot reach your planner data.
 - The link holds 192 random bits after a `#`, which browsers never send to servers or logs. Anyone who has the link can open it, so share it only with people you trust.
 - **Make a new link** kills the old one instantly; **Turn off** also deletes the stored summary. The summary refreshes whenever your progress syncs, and the viewer page re-checks every minute.
+
+## Landing page
+
+On screens wide enough for the Daily view's two columns (over 900 px), the app opens on the **Daily view** (Light | Focused side by side). Narrower screens open on the Dashboard. A link with a page in it (for example `#dashboard`) always wins.
 
 ## Dashboard extras
 

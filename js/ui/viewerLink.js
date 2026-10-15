@@ -1,7 +1,8 @@
 // Settings panel for the viewer link.
-import { cloudConfigured, onStatus } from '../cloud.js';
+import { cloudConfigured, onStatus, signInCloud } from '../cloud.js';
 import { disableShare, enableShare, onShare, regenerateShare, viewerUrl } from '../share.js';
-import { confirmDialog } from './dialogs.js';
+import { esc } from '../utils.js';
+import { confirmDialog, openDialog } from './dialogs.js';
 import { $ } from './dom.js';
 import { toast } from './toast.js';
 
@@ -67,6 +68,47 @@ export function initViewerLink() {
   });
   $('#viewerUrl').addEventListener('focus', (e) => e.target.select());
 
+  // Dashboard shortcut: one button that creates the link if needed and shows it ready to copy.
+  const shareBtn = $('#shareBtn');
+  shareBtn.hidden = !cloudConfigured();
   onStatus((s) => { signedIn = !!s.user; paint(); });
   onShare((s) => { share = s; paint(); });
+  shareBtn.addEventListener('click', async () => {
+    if (!signedIn) {
+      toast('Sign in with Google first, then you can share a viewer link.', { action: { label: 'Sign in', run: () => signInCloud() }, ms: 9000 });
+      return;
+    }
+    if (!share?.enabled) {
+      if (busy) return;
+      busy = true;
+      shareBtn.disabled = true;
+      try { await enableShare(); } catch {
+        toast('Could not create the viewer link. Check your connection and that supabase/viewer.sql was run.', { type: 'error', ms: 8000 });
+        busy = false;
+        shareBtn.disabled = false;
+        return;
+      }
+      busy = false;
+      shareBtn.disabled = false;
+    }
+    showLinkDialog(viewerUrl(share.token));
+  });
+}
+
+function showLinkDialog(url) {
+  openDialog({
+    title: 'Share your progress',
+    submitLabel: null,
+    cancelLabel: 'Done',
+    body: `<p>Send this link to a parent or friend. They see big, simple numbers only: no lecture titles, no planner, no controls.</p>
+      <div class="row"><label class="sr-only" for="shareUrl">Viewer link</label><input id="shareUrl" type="text" readonly value="${esc(url)}" style="flex:1 1 240px;min-width:0"><button type="button" id="shareCopy">Copy link</button></div>
+      <p class="small muted">Anyone who has the link can open it. To switch it off or get a new link, go to Settings > Viewer link.</p>`,
+    onOpen: (form) => {
+      const input = form.querySelector('#shareUrl');
+      input.select();
+      form.querySelector('#shareCopy').addEventListener('click', async () => {
+        try { await navigator.clipboard.writeText(url); toast('Link copied.'); } catch { input.select(); toast('Press Ctrl+C (or long-press) to copy the selected link.'); }
+      });
+    },
+  });
 }
