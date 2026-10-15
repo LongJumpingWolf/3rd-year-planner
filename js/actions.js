@@ -431,12 +431,10 @@ export async function runGenerate(formValues, { silent = false, undoable = true 
   return { ok: true };
 }
 
-/** Before a rebuild moves open lectures off past days, remember their planned hours on those days (for the day's completion %). */
+/** Before a rebuild moves open lectures off past days, remember how many were planned on each of those days. */
 function recordMisses() {
-  state.missLog = { ...(state.missLog || {}) };
-  for (const t of overdueLectures()) {
-    state.missLog[t.scheduledDate] = Math.round(((state.missLog[t.scheduledDate] || 0) + taskPlannedSec(t, state.settings) / 3600) * 1000) / 1000;
-  }
+  state.missedLectures = { ...(state.missedLectures || {}) };
+  for (const t of overdueLectures()) state.missedLectures[t.scheduledDate] = (state.missedLectures[t.scheduledDate] || 0) + 1;
 }
 
 /** Save the owner's WhatsApp number for the viewer's Notify button. Returns an error string, or '' when saved. */

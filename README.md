@@ -57,9 +57,10 @@ How it behaves: each account stores one row. Edits upload about 1.5 seconds afte
 
 The Dashboard's **Share progress** button (or Settings > **Viewer link**) creates a secret link to a separate, read-only page (`view.html`) in big print. It shows:
 
-- **Refresh** at the top, with when it was last updated.
+- **Refresh** at the top, with when it was last updated. It reloads the whole page, so you always see the latest summary. The page fits any phone width.
 - **Still pending**: the lectures you are behind on (those planned for earlier days and still open), named, with a **Notify on WhatsApp** button. Pressing it opens WhatsApp with a short reminder already typed, listing the pending lectures; the viewer just presses send. Add your WhatsApp number in Settings > Viewer link (country code, digits only) and the message goes straight to you; leave it empty and the viewer picks your contact themselves.
-- **Overall progress**, **On track / behind**, **Today's work done** (the percentage of today's planned work that is ticked off), and a **Study streak**: days in a row on which at least 90% of the day's planned work was done (days with nothing planned are skipped; today counts once it reaches 90% and does not break the streak before that). Work that was missed and later moved forward by a re-spread still counts against the day it was planned for.
+- **Overall progress**, **On track / behind**, **Today's lectures** (for example "3 of 6": the lectures planned for today that are done) and a **Study streak**: days in a row on which at least 90% of that day's lectures were done (days with nothing planned are skipped; today counts once it reaches 90% and does not break the streak before that).
+- Everything is counted on the day a lecture was **planned for**, never on the day it was ticked: ticking off yesterday's lectures today does not change today's card or today's bar, it shows against yesterday. Lectures that were missed and later moved forward by a re-spread still count against the day they were planned for.
 - The last 7 days, lectures per subject (paused subjects are marked), a countdown, and your own **Also done** notes (add them in the Daily view, under each day).
 
 - Run [supabase/viewer.sql](supabase/viewer.sql) once in the Supabase SQL editor (after `schema.sql`), then sign in and press **Create viewer link**.

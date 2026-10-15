@@ -21,23 +21,24 @@ test('statusView words and tones', () => {
   assert.equal(statusView(undefined).tone, 'neutral');
 });
 
-test('todayView shows how much of today\'s work is done, a rest day, or that the update is old', () => {
-  const base = { asOf: '2026-10-20', today: { plannedLectures: 3, doneLectures: 2, pct: 62, plannedH: 4, doneH: 2.5 } };
+test("todayView shows how many of today's planned lectures are done, a rest day, or that the update is old", () => {
+  const base = { asOf: '2026-10-20', today: { plannedLectures: 6, doneLectures: 2 } };
   const v = todayView(base, '2026-10-20');
-  assert.equal(v.headline, '62%');
-  assert.equal(v.pct, 62);
-  assert.match(v.line, /2 of 3 lectures done · 2\.5 of 4 study hours/);
-  assert.equal(todayView({ ...base, today: { ...base.today, pct: 95 } }, '2026-10-20').tone, 'good');
-  assert.equal(todayView({ ...base, today: { ...base.today, pct: 0 } }, '2026-10-20').headline, '0%');
-  assert.equal(todayView({ ...base, today: { plannedLectures: 0, doneLectures: 0, pct: null } }, '2026-10-20').headline, 'Rest day');
+  assert.equal(v.headline, '2 of 6');
+  assert.deepEqual([v.done, v.planned, v.pct], [2, 6, 33]);
+  assert.match(v.line, /6 lectures planned for today, 2 done/);
+  assert.equal(todayView({ asOf: '2026-10-20', today: { plannedLectures: 6, doneLectures: 6 } }, '2026-10-20').tone, 'good');
+  assert.match(todayView({ asOf: '2026-10-20', today: { plannedLectures: 6, doneLectures: 6 } }, '2026-10-20').line, /All of today's 6 lectures done/);
+  assert.equal(todayView({ asOf: '2026-10-20', today: { plannedLectures: 6, doneLectures: 0 } }, '2026-10-20').headline, '0 of 6');
+  assert.equal(todayView({ asOf: '2026-10-20', today: { plannedLectures: 0, doneLectures: 0 } }, '2026-10-20').headline, 'Rest day');
   assert.equal(todayView(base, '2026-10-21').headline, 'Waiting');
-  // Summaries saved before this field existed only had lecture counts.
-  assert.equal(todayView({ asOf: '2026-10-20', today: { plannedLectures: 4, doneLectures: 1 } }, '2026-10-20').headline, '25%');
+  // Never "9 of 6": a count that is somehow larger than the plan is clamped.
+  assert.equal(todayView({ asOf: '2026-10-20', today: { plannedLectures: 6, doneLectures: 9 } }, '2026-10-20').headline, '6 of 6');
 });
 
-test('streakView explains the 90% rule', () => {
-  assert.deepEqual(streakView({ streak: 6, streakPct: 90 }), { num: '6 days', line: "in a row with 90% or more of the day's work done" });
-  assert.match(streakView({ streak: 0 }).line, /Reach 90% of a day's work to start a streak/);
+test('streakView explains the 90% rule in terms of lectures', () => {
+  assert.deepEqual(streakView({ streak: 6, streakPct: 90 }), { num: '6 days', line: "in a row with 90% or more of the day's lectures done" });
+  assert.match(streakView({ streak: 0 }).line, /Do 90% of a day's lectures to start a streak/);
   assert.equal(streakView({ streak: 1 }).num, '1 day');
 });
 

@@ -26,7 +26,7 @@ export function freshState() {
     simLast: { hours: 2, reserve: 6, days: 3, existing: 1 },
     extras: {},
     viewer: { phone: '' },
-    missLog: {},
+    missedLectures: {},
   };
 }
 
@@ -139,13 +139,13 @@ export function sanitizeState(raw) {
   // Viewer link: the owner's WhatsApp number (digits, with country code) for the Notify button.
   const phoneDigits = String(raw.viewer?.phone ?? '').replace(/\D/g, '');
   const viewer = { phone: phoneDigits.length >= 8 && phoneDigits.length <= 15 ? phoneDigits : '' };
-  // Planned hours that were missed on a past day and moved forward by a re-plan, so that day's completion stays honest.
-  const missLog = {};
-  for (const [iso, h] of Object.entries(raw.missLog && typeof raw.missLog === 'object' ? raw.missLog : {})) {
-    if (isValidISO(iso) && Number.isFinite(Number(h)) && Number(h) > 0) missLog[iso] = Math.round(Number(h) * 1000) / 1000;
+  // How many lectures planned for a past day were missed and moved forward by a re-plan, so that day's progress stays honest.
+  const missedLectures = {};
+  for (const [iso, n] of Object.entries(raw.missedLectures && typeof raw.missedLectures === 'object' ? raw.missedLectures : {})) {
+    if (isValidISO(iso) && Number.isInteger(Number(n)) && Number(n) > 0) missedLectures[iso] = Number(n);
   }
   const planMeta = raw.planMeta && typeof raw.planMeta === 'object' ? raw.planMeta : null;
-  return { tasks, settings, planConfig, backlog, planMeta, simLast, extras, viewer, missLog, version: Number(raw.version) >= SCHEMA_VERSION ? SCHEMA_VERSION : 1 };
+  return { tasks, settings, planConfig, backlog, planMeta, simLast, extras, viewer, missedLectures, version: Number(raw.version) >= SCHEMA_VERSION ? SCHEMA_VERSION : 1 };
 }
 
 let idCounter = 0;

@@ -27,24 +27,31 @@ export function statusView(status, startIso) {
   }
 }
 
-/** Today's card: how much of today's planned work is ticked off. `todayIso` is the viewer's own date; an older update is called out. */
+/**
+ * Today's card: how many of today's planned lectures are done. Only lectures planned for today count, so ticking off yesterday's
+ * work today does not change it. `todayIso` is the viewer's own date; an older update is called out instead of guessed.
+ */
 export function todayView(snap, todayIso) {
   const t = snap.today || { plannedLectures: 0, doneLectures: 0 };
   if (snap.asOf !== todayIso) {
-    return { tone: 'neutral', pct: null, headline: 'Waiting', line: `Last update was on ${fmtDate(snap.asOf, { weekday: 'long', day: 'numeric', month: 'short' })}.` };
+    return { tone: 'neutral', pct: null, done: 0, planned: 0, headline: 'Waiting', line: `Last update was on ${fmtDate(snap.asOf, { weekday: 'long', day: 'numeric', month: 'short' })}.` };
   }
-  const pct = t.pct !== undefined ? t.pct : (t.plannedLectures ? Math.round((t.doneLectures / t.plannedLectures) * 100) : null); // older summaries only had counts
-  if (pct === null || pct === undefined) return { tone: 'neutral', pct: null, headline: 'Rest day', line: 'Nothing is planned for today.' };
-  const hours = t.plannedH ? ` · ${t.doneH ?? 0} of ${t.plannedH} study hours` : '';
-  const lectures = t.plannedLectures ? `${t.doneLectures} of ${plural(t.plannedLectures, 'lecture')} done${hours}.` : `${hours.replace(/^ · /, '')}.`;
-  return { tone: pct >= 90 ? 'good' : pct >= 40 ? 'warn' : 'neutral', pct, headline: `${pct}%`, line: lectures };
+  const planned = Math.max(0, t.plannedLectures || 0);
+  const done = Math.min(planned, Math.max(0, t.doneLectures || 0)); // never more done than planned
+  if (!planned) return { tone: 'neutral', pct: null, done: 0, planned: 0, headline: 'Rest day', line: 'No lectures are planned for today.' };
+  const pct = Math.round((done / planned) * 100);
+  return {
+    tone: pct >= 90 ? 'good' : pct >= 40 ? 'warn' : 'neutral', pct, done, planned,
+    headline: `${done} of ${planned}`,
+    line: done === planned ? `All of today's ${plural(planned, 'lecture')} done.` : `${plural(planned, 'lecture')} planned for today, ${done} done.`,
+  };
 }
 
-/** Study streak: days in a row with at least `streakPct` of the day's work ticked off. */
+/** Study streak: days in a row on which at least `streakPct` of that day's lectures were done. */
 export function streakView(snap) {
   const bar = snap.streakPct || 90;
   const n = snap.streak || 0;
-  return { num: plural(n, 'day'), line: n ? `in a row with ${bar}% or more of the day's work done` : `Reach ${bar}% of a day's work to start a streak` };
+  return { num: plural(n, 'day'), line: n ? `in a row with ${bar}% or more of the day's lectures done` : `Do ${bar}% of a day's lectures to start a streak` };
 }
 
 /** Lectures that are overdue, as lines the viewer can read, and a pre-typed WhatsApp reminder (to the owner's number when it was shared). */

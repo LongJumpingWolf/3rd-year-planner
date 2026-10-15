@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { buildSnapshot, completionStreak, dayCompletion, pendingLectures, trackStatus } from '../../js/viewerSnapshot.js';
+import { buildSnapshot, completionStreak, dayLectures, pendingLectures, trackStatus, weekProgress } from '../../js/viewerSnapshot.js';
 import { generatePlan } from '../../js/planner.js';
 import { freshState } from '../../js/store.js';
 
@@ -16,7 +16,7 @@ test('snapshot has counts only: no task titles or ids anywhere (when nothing is 
   for (const t of s.tasks.slice(0, 40)) assert.ok(!json.includes(t.title), `leaked title: ${t.title}`);
   assert.equal(snap.done, 1);
   assert.equal(snap.total, lectures(s).length);
-  assert.equal(snap.today.doneLectures, 1);
+  assert.equal(snap.today.doneLectures, 0, 'a lecture that was not planned for today is not counted as done today');
   assert.equal(snap.name, 'Asha');
   assert.equal(snap.week.length, 7);
 });
@@ -76,19 +76,51 @@ function planned(planOn = '2026-10-12') {
 }
 const onDay = (st, iso) => st.tasks.filter((t) => t.scheduledDate === iso);
 const finishDay = (st, iso, share = 1) => {
-  const list = onDay(st, iso);
+  // The streak is about lectures: tick the first `share` of the lectures planned for that day (plus the rest of its blocks when complete).
+  const list = share >= 1 ? onDay(st, iso) : onDay(st, iso).filter((t) => t.type === 'video' && !t.generated);
   list.slice(0, Math.ceil(list.length * share)).forEach((t) => { t.done = true; t.doneAt = iso; });
 };
 
-test("today's completion is the share of today's planned work (all blocks, by hours) that is ticked off", () => {
+const lecturesOn = (st, iso) => st.tasks.filter((t) => t.type === 'video' && !t.generated && t.scheduledDate === iso);
+
+test("today's progress counts only lectures planned for today, and never more done than planned", () => {
   const st = planned();
-  assert.equal(dayCompletion(st, '2026-10-14').pct, 0);
-  onDay(st, '2026-10-14').forEach((t) => { t.done = true; });
-  assert.equal(dayCompletion(st, '2026-10-14').pct, 100);
+  const todays = lecturesOn(st, '2026-10-14');
+  assert.ok(todays.length >= 3);
+  assert.deepEqual(dayLectures(st, '2026-10-14'), { planned: todays.length, done: 0, pct: 0 });
+  todays.slice(0, 2).forEach((t) => { t.done = true; t.doneAt = '2026-10-14'; });
   const snap = buildSnapshot(st, '2026-10-14');
-  assert.equal(snap.today.pct, 100);
-  assert.ok(snap.today.plannedH > 2 && snap.today.doneH === snap.today.plannedH);
-  assert.equal(dayCompletion(st, '2026-09-01').pct, null, 'a day with nothing planned has no percentage');
+  assert.equal(snap.today.plannedLectures, todays.length);
+  assert.equal(snap.today.doneLectures, 2);
+  assert.equal(dayLectures(st, '2026-09-01').pct, null, 'a day with nothing planned has no percentage');
+});
+
+test("ticking yesterday's lectures today does not count as today's work (the \"9 of 6\" bug)", () => {
+  const st = planned();
+  const yesterday = lecturesOn(st, '2026-10-13');
+  assert.ok(yesterday.length >= 3);
+  // The owner catches up on yesterday's lectures on the 14th: they are ticked with today's date.
+  yesterday.forEach((t) => { t.done = true; t.doneAt = '2026-10-14'; });
+  const snap = buildSnapshot(st, '2026-10-14');
+  assert.equal(snap.today.doneLectures, 0, 'nothing planned for today was ticked');
+  assert.ok(snap.today.doneLectures <= snap.today.plannedLectures);
+  // ...and the chart shows that work on the day it was planned for, not on the day it was ticked.
+  const bars = Object.fromEntries(snap.week.map((d) => [d.iso, d.count]));
+  assert.equal(bars['2026-10-13'], yesterday.length);
+  assert.equal(bars['2026-10-14'], 0);
+  // Done and planned never contradict each other on any day of the week.
+  for (const d of snap.week) assert.ok(d.count <= d.planned, `${d.iso}: ${d.count} of ${d.planned}`);
+});
+
+test('the weekly chart is built from planned days: oldest first, seven entries, done out of planned', () => {
+  const st = planned();
+  lecturesOn(st, '2026-10-12').slice(0, 2).forEach((t) => { t.done = true; });
+  const w = weekProgress(st, '2026-10-14', 7);
+  assert.equal(w.length, 7);
+  assert.deepEqual(w.map((d) => d.iso), ['2026-10-08', '2026-10-09', '2026-10-10', '2026-10-11', '2026-10-12', '2026-10-13', '2026-10-14']);
+  const d12 = w.find((d) => d.iso === '2026-10-12');
+  assert.equal(d12.count, 2);
+  assert.equal(d12.planned, lecturesOn(st, '2026-10-12').length);
 });
 
 test('study streak: consecutive days with at least 90% of the day done; a weaker day breaks it', () => {
@@ -123,23 +155,25 @@ test('streak skips days with nothing planned (e.g. a rest day) instead of breaki
   finishDay(st, '2026-10-12');
   finishDay(st, '2026-10-14');
   for (const t of onDay(st, '2026-10-13')) { t.scheduledDate = null; t.done = false; } // nothing planned on the 13th
-  assert.equal(dayCompletion(st, '2026-10-13').pct, null);
+  assert.equal(dayLectures(st, '2026-10-13').pct, null);
   assert.equal(completionStreak(st, '2026-10-14'), 2);
 });
 
-test('work that was missed and moved forward by a re-plan still counts against the day it was planned for', () => {
+test('lectures that were missed and moved forward by a re-plan still count against the day they were planned for', () => {
   const st = planned();
-  finishDay(st, '2026-10-12');
-  const lecture = onDay(st, '2026-10-12').find((t) => t.type === 'video');
-  // Simulate the re-plan: the lecture leaves the 12th undone and its planned hours are logged as missed.
-  const hours = lecture.durationSec / 2 * 1.32 / 3600;
-  lecture.done = false;
-  lecture.scheduledDate = '2026-10-20';
-  const without = dayCompletion(st, '2026-10-12').pct;
-  st.missLog = { '2026-10-12': hours };
-  const withLog = dayCompletion(st, '2026-10-12').pct;
-  assert.ok(without > withLog, `${without} then ${withLog}`);
-  assert.ok(withLog < 100);
+  const day = lecturesOn(st, '2026-10-12');
+  day.forEach((t) => { t.done = true; });
+  assert.equal(dayLectures(st, '2026-10-12').pct, 100);
+  // Simulate the re-plan: one lecture leaves the 12th undone and the miss is logged.
+  const missed = day[0];
+  missed.done = false;
+  missed.scheduledDate = '2026-10-20';
+  st.missedLectures = { '2026-10-12': 1 };
+  const after = dayLectures(st, '2026-10-12');
+  assert.equal(after.planned, day.length);
+  assert.equal(after.done, day.length - 1);
+  assert.ok(after.pct < 100);
+  assert.equal(completionStreak(st, '2026-10-14') <= 2, true);
 });
 
 test('pending lectures are the open ones planned for earlier days, oldest first, and only they carry titles', () => {
@@ -169,14 +203,14 @@ test('the owner\'s WhatsApp number goes into the summary', () => {
   assert.equal(buildSnapshot(freshState(), '2026-10-14').phone, '');
 });
 
-test('sanitizeState keeps a valid WhatsApp number and the missed-work log, and drops junk', async () => {
+test('sanitizeState keeps a valid WhatsApp number and the missed-lecture log, and drops junk', async () => {
   const { sanitizeState } = await import('../../js/store.js');
   const raw = JSON.parse(JSON.stringify(freshState()));
   raw.viewer = { phone: '+91 98765-43210' };
-  raw.missLog = { '2026-10-12': 1.23456, 'bad': 2, '2026-10-13': -1, '2026-10-14': 'x' };
+  raw.missedLectures = { '2026-10-12': 3, bad: 2, '2026-10-13': -1, '2026-10-14': 'x', '2026-10-15': 1.5 };
   const out = sanitizeState(raw);
   assert.equal(out.viewer.phone, '919876543210');
-  assert.deepEqual(out.missLog, { '2026-10-12': 1.235 });
+  assert.deepEqual(out.missedLectures, { '2026-10-12': 3 });
   raw.viewer = { phone: '123' };
   assert.equal(sanitizeState(raw).viewer.phone, '', 'too short to be a number');
   delete raw.viewer;

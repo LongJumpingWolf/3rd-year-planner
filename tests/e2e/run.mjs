@@ -1403,9 +1403,9 @@ async function openViewer(snapshot, { hash = '#t=' + 'a'.repeat(43), viewport } 
 
 const SNAP = {
   v: 1, name: 'Asha', updatedAt: '2026-10-14T09:30:00.000Z', asOf: '2026-10-14', startsOn: '2026-10-12', done: 113, total: 270, pct: 42,
-  status: { code: 'slightly', behind: 2 }, today: { plannedLectures: 3, doneLectures: 2, pct: 62, plannedH: 4, doneH: 2.5 }, streak: 6, streakPct: 90,
+  status: { code: 'slightly', behind: 2 }, today: { plannedLectures: 6, doneLectures: 2, pct: 33 }, streak: 6, streakPct: 90,
   pending: [{ subject: 'Anatomy', title: 'Brachial plexus', date: '2026-10-12' }, { subject: 'Physiology', title: 'Cardiac cycle <i>x</i>', date: '2026-10-13' }], pendingTotal: 4, phone: '919876543210',
-  week: [0, 3, 4, 0, 5, 2, 2].map((count, i) => ({ iso: `2026-10-${String(8 + i).padStart(2, '0')}`, count })),
+  week: [0, 3, 4, 0, 5, 2, 2].map((count, i) => ({ iso: `2026-10-${String(8 + i).padStart(2, '0')}`, count, planned: 6 })),
   subjects: [{ subject: 'Anatomy', done: 20, total: 40, pct: 50 }, { subject: 'Physiology', done: 5, total: 50, pct: 10 }],
   target: { date: '2026-12-20', daysLeft: 67 },
   extras: [{ date: '2026-10-14', items: ['40 MCQs on cardiology', '<b>x</b>'] }],
@@ -1417,11 +1417,12 @@ await test('viewer page: big, simple summary with the right numbers and no way i
   assert.equal((await page.textContent('.big')).replace(/\s/g, ''), '42%');
   assert.match(await page.textContent('.count'), /113 of 270 lectures done/);
   assert.match(await page.textContent('.status'), /A little behind: 2 lectures/);
-  assert.match(await page.textContent('#h-today'), /Today's work done/);
-  assert.equal((await page.textContent('#h-today + .num')).trim(), '62%', "today's completion, not yes/no");
-  assert.equal(await page.getAttribute('#h-today ~ .bar', 'aria-valuenow'), '62');
+  assert.match(await page.textContent('#h-today'), /Today's lectures/);
+  assert.equal((await page.textContent('#h-today + .num')).trim(), '2 of 6', 'lectures done out of lectures planned for today, not a percentage');
+  assert.equal(await page.getAttribute('#h-today ~ .bar', 'aria-valuenow'), '2');
+  assert.equal(await page.getAttribute('#h-today ~ .bar', 'aria-valuemax'), '6');
   assert.match(await page.textContent('#h-streak + .num'), /6 days/);
-  assert.match(await page.textContent('#h-streak ~ .sub'), /90% or more of the day's work done/);
+  assert.match(await page.textContent('#h-streak ~ .sub'), /90% or more of the day's lectures done/);
   assert.equal(await page.locator('.subj li').count(), 2);
   assert.match(await page.textContent('#h-extras + .days'), /40 MCQs on cardiology/);
   assert.match(await page.textContent('#h-extras + .days'), /<b>x<\/b>/, 'notes are shown as text, never as HTML');
@@ -1654,19 +1655,54 @@ await test('dashboard "Share progress": needs sign-in first, then creates the li
 
 
 
-await test('viewer page: Refresh sits at the top next to the title and works', async () => {
+await test('viewer page: Refresh sits at the top, is big enough to tap, and reloads the whole page', async () => {
   const { page, ctx, calls } = await openViewer(SNAP);
   const box = await page.locator('#refresh').boundingBox();
   assert.ok(box.y < 160, `refresh is near the top (y=${Math.round(box.y)})`);
   assert.ok(box.width >= 44 && box.height >= 44, 'big enough to tap');
   assert.equal(await page.locator('footer').count(), 0);
+  await page.evaluate(() => { window.__notReloaded = true; });
   const before = calls.length;
-  await page.click('#refresh');
-  await page.waitForFunction((n) => window.__calls === undefined || true, before);
-  await page.waitForTimeout(400);
-  assert.ok(calls.length > before, 'refresh fetches again');
+  await Promise.all([page.waitForEvent('load'), page.click('#refresh')]);
+  await page.waitForSelector('.big');
+  assert.equal(await page.evaluate(() => window.__notReloaded), undefined, 'the page really reloaded (script state was reset)');
+  assert.ok(calls.length > before, 'and it fetched the latest summary');
+  assert.match(page.url(), /view\.html#t=a{43}$/, 'still on the same viewer link');
   await ctx.close();
 });
+
+for (const [w, h] of [[320, 640], [360, 800], [393, 852], [427, 952]]) {
+  await test(`viewer page: fits a ${w}px phone with long names and titles (no sideways scroll, nothing cut off)`, async () => {
+    const long = {
+      ...SNAP, name: 'AdityaStudyzzWithAVeryLongName',
+      subjects: [{ subject: 'Preventive and Social Medicine and Community Health', done: 11, total: 117, pct: 9 }, { subject: 'ENT', done: 0, total: 65, pct: 0, paused: true }],
+      pending: [{ subject: 'Preventive and Social Medicine', title: 'Errors in Epidemiology/Bias/Confounders/Hills_Criteria_Of_Causation_And_More', date: '2026-10-12' }],
+      pendingTotal: 9,
+      extras: [{ date: '2026-10-14', items: ['Revised_pharmacology_notes_including_the_long_chapter_on_autonomic_drugs'] }],
+    };
+    const t = await newPage({ viewport: { width: w, height: h }, colorScheme: 'dark' });
+    await t.page.route('**/js/supabase-config.js', (r) => r.fulfill({ contentType: 'text/javascript', body: "export const supabaseConfig = { url: 'https://fake.supabase.co', anonKey: 'k' };" }));
+    await t.page.route('https://fake.supabase.co/**', (r) => r.fulfill({ contentType: 'application/json', body: JSON.stringify(long) }));
+    await t.page.goto(`${BASE}/view.html#t=${'a'.repeat(43)}`);
+    await t.page.waitForSelector('.big');
+    const info = await t.page.evaluate(() => {
+      const vw = document.documentElement.clientWidth;
+      return {
+        vw, scrollW: document.documentElement.scrollWidth,
+        cut: [...document.querySelectorAll('main *')].filter((e) => !e.closest('.sr-only') && e.getBoundingClientRect().width > 0 && (e.getBoundingClientRect().right > vw + 0.5 || e.getBoundingClientRect().left < -0.5)).map((e) => e.tagName + '.' + e.className).slice(0, 5),
+      };
+    });
+    assert.equal(info.scrollW <= info.vw, true, `scrollWidth ${info.scrollW} vs ${info.vw}`);
+    assert.deepEqual(info.cut, [], 'no element sticks out of the screen');
+    for (const sel of ['#refresh', 'a.notify']) {
+      const b = await t.page.locator(sel).boundingBox();
+      assert.ok(b.x >= 0 && b.x + b.width <= w + 0.5, `${sel} is fully on screen`);
+    }
+    assert.match(await t.page.textContent('a.notify'), /Notify AdityaStudyzzWithAVeryLongName on WhatsApp/);
+    assert.equal(await t.page.locator('.notify .sr-only').evaluate((e) => getComputedStyle(e).position), 'absolute', 'the screen-reader text is hidden, not shown inside the button');
+    await t.ctx.close();
+  });
+}
 
 await test('viewer page: names what is pending and Notify opens WhatsApp with a ready-typed reminder', async () => {
   const { page, ctx } = await openViewer(SNAP);
@@ -1703,10 +1739,10 @@ await test('viewer page: without a shared number WhatsApp lets the viewer pick t
   await none.ctx.close();
 });
 
-await test('viewer page: an older summary without the new fields still renders (today shows a percentage from the counts)', async () => {
+await test('viewer page: an older summary without the new fields still renders (today shows the lecture counts)', async () => {
   const { today, streakPct, pending, pendingTotal, phone, ...old } = SNAP;
   const { page, ctx, problems } = await openViewer({ ...old, today: { plannedLectures: 4, doneLectures: 1 } });
-  assert.equal((await page.textContent('#h-today + .num')).trim(), '25%');
+  assert.equal((await page.textContent('#h-today + .num')).trim(), '1 of 4');
   assert.equal(await page.locator('#h-pending').count(), 0);
   assert.deepEqual(problems.filter((p) => !p.includes('fake.supabase')), []);
   await ctx.close();
@@ -1941,18 +1977,19 @@ await test('plan tuner: mobile (375px) has no horizontal scroll and every contro
 });
 
 
-await test('a rebuild that moves missed lectures forward remembers the missed hours (so that day is not counted as complete)', async () => {
+await test('a rebuild that moves missed lectures forward remembers how many were missed on each day', async () => {
   const { page, ctx } = await openTuner(seededState({ planOn: '2026-10-05' }));
-  const before = await page.evaluate(() => JSON.parse(localStorage.getItem('mbbsStudyCommandCenter.v1')).missLog);
-  assert.deepEqual(before, {}, 'nothing logged yet');
+  const log = () => page.evaluate(() => JSON.parse(localStorage.getItem('mbbsStudyCommandCenter.v1')).missedLectures);
+  assert.deepEqual(await log(), {}, 'nothing logged yet');
+  const overdue = await page.evaluate(() => JSON.parse(localStorage.getItem('mbbsStudyCommandCenter.v1')).tasks.filter((t) => t.type === 'video' && !t.done && t.scheduledDate && t.scheduledDate < '2026-10-14').length);
   await page.click('#catchup button');
   await page.waitForSelector('#toasts .toast');
-  const after = await page.evaluate(() => JSON.parse(localStorage.getItem('mbbsStudyCommandCenter.v1')).missLog);
+  const after = await log();
   const days = Object.keys(after).sort();
   assert.ok(days.length >= 2 && days.every((d) => d >= '2026-10-12' && d < '2026-10-14'), `missed days: ${days.join(', ')}`);
-  assert.ok(Object.values(after).every((h) => h > 0));
+  assert.equal(Object.values(after).reduce((x, y) => x + y, 0), overdue, 'one count per missed lecture');
   await page.locator('#toasts .toast', { hasText: 'Plan re-spread' }).getByRole('button', { name: 'Undo' }).click();
-  assert.deepEqual(await page.evaluate(() => JSON.parse(localStorage.getItem('mbbsStudyCommandCenter.v1')).missLog), {}, 'Undo also removes the log');
+  assert.deepEqual(await log(), {}, 'Undo also removes the log');
   await ctx.close();
 });
 

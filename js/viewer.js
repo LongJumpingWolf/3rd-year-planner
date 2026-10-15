@@ -15,7 +15,7 @@ const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
 function message(text, { retry = false } = {}) {
   app.setAttribute('aria-busy', 'false');
   app.innerHTML = `<p class="msg">${esc(text)}</p>${retry ? '<p class="msg"><button type="button" id="retry">Try again</button></p>' : ''}`;
-  document.getElementById('retry')?.addEventListener('click', load);
+  document.getElementById('retry')?.addEventListener('click', () => location.reload());
 }
 
 async function fetchSnapshot() {
@@ -74,9 +74,9 @@ function render(snap) {
 
     <div class="pair">
       <section class="card" aria-labelledby="h-today">
-        <h2 id="h-today">Today's work done</h2>
+        <h2 id="h-today">Today's lectures</h2>
         <p class="num">${esc(td.headline)}</p>
-        ${td.pct === null ? '' : `<div class="bar" role="progressbar" aria-label="Today's planned work completed" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${td.pct}"><span style="width:${Math.min(100, td.pct)}%"></span></div>`}
+        ${td.pct === null ? '' : `<div class="bar" role="progressbar" aria-label="Today's lectures done" aria-valuemin="0" aria-valuemax="${td.planned}" aria-valuenow="${td.done}" aria-valuetext="${td.done} of ${td.planned} lectures"><span style="width:${Math.min(100, td.pct)}%"></span></div>`}
         <p class="sub">${esc(td.line)}</p>
       </section>
       <section class="card" aria-labelledby="h-streak">
@@ -88,10 +88,10 @@ function render(snap) {
 
     <section class="card" aria-labelledby="h-week">
       <h2 id="h-week">Last 7 days</h2>
-      <div class="week" role="img" aria-label="Lectures done each day: ${snap.week.map((d) => `${fmtDate(d.iso, { weekday: 'long' })} ${d.count}`).join(', ')}">
+      <div class="week" role="img" aria-label="Lectures done on each day they were planned for: ${snap.week.map((d) => `${fmtDate(d.iso, { weekday: 'long' })} ${d.count}${d.planned ? ` of ${d.planned}` : ''}`).join(', ')}">
         ${snap.week.map((d) => `<div class="col" aria-hidden="true"><span class="n">${d.count}</span><div class="stick${d.count ? '' : ' zero'}" style="height:${Math.max(3, Math.round((d.count / maxWeek) * 100))}%"></div><span class="d">${esc(fmtDate(d.iso, { weekday: 'short' }))}</span></div>`).join('')}
       </div>
-      <p class="sub" style="margin-top:10px">${weekTotal ? `${plural(weekTotal, 'lecture')} done this week.` : 'No lectures done in the last 7 days.'}</p>
+      <p class="sub" style="margin-top:10px">${weekTotal ? `${plural(weekTotal, 'lecture')} done on the day they were planned.` : 'No planned lectures were done in the last 7 days.'}</p>
     </section>
 
     <section class="card" aria-labelledby="h-subj">
@@ -115,7 +115,7 @@ function render(snap) {
       <p class="sub">${esc(target.label)}</p>
     </section>` : ''}
 `;
-  document.getElementById('refresh').addEventListener('click', load);
+  document.getElementById('refresh').addEventListener('click', () => location.reload());
 }
 
 async function load() {
