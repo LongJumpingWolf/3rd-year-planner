@@ -333,7 +333,7 @@ Solve 25 respiratory MCQs"></textarea></div>
       </details>`,
     submitLabel: 'Add tasks',
     onSubmit: ({ titles, subject, category, min, intensity, date: iso, block: chosenBlock, schedule }) => {
-      const list = String(titles || '').split(/\\r?\\n/).map((x) => x.trim()).filter(Boolean);
+      const list = String(titles || '').split(/\r?\n/).map((x) => x.trim()).filter(Boolean);
       if (!list.length) return 'Enter at least one task title.';
       if (list.length > 30) return 'Add up to 30 tasks at a time.';
       if (!String(subject || '').trim()) return 'Enter a subject. You can type a new subject name.';
