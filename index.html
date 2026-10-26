@@ -6,7 +6,7 @@
 <meta name="color-scheme" content="light dark">
 <meta name="description" content="A practical MBBS study planner for lectures, revision, task scheduling and catch-up.">
 <title>MBBS Study Planner</title>
-<meta name="theme-color" content="#1b2a33">
+<meta name="theme-color" content="#202722">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <script>try{var t=localStorage.getItem("mbbsTheme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t;}catch(e){}</script>
@@ -61,12 +61,6 @@
         </div>
       </div>
       <details class="planning-note"><summary>About this plan</summary><p>The schedule uses the lecture titles in your library, flags estimated durations and protects your saved trip dates. Finish targets and capacity assumptions are in the weekly calendar.</p></details>
-      <div class="cards" role="list" aria-label="Key numbers">
-        <div class="card" role="listitem"><div class="metric-label">Indexed lectures</div><div class="metric" id="mTasks">—</div><div class="metric-note" id="mSubjects"></div></div>
-        <div class="card" role="listitem"><div class="metric-label">Completed</div><div class="metric" id="mDone">—</div><div class="progress" role="progressbar" aria-label="Completed lectures" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="pDoneBar"><span id="pDone"></span></div></div>
-        <div class="card" role="listitem"><div class="metric-label">Video runtime</div><div class="metric" id="mRuntime">—</div><div class="metric-note">Missing timings count as 20 min</div></div>
-        <div class="card" role="listitem"><div class="metric-label">Study time needed</div><div class="metric" id="mPlanned">—</div><div class="metric-note">Runtime + annotation + recall</div></div>
-      </div>
       <div class="grid2">
         <section class="panel" aria-labelledby="h-today">
           <h3 id="h-today">Light and focused work for the selected date</h3>
@@ -89,6 +83,13 @@
           </div>
           <div class="row actions"><a class="btn" href="#simulator">Simulate a disruption</a></div>
         </section>
+      </div>
+
+      <div class="cards" role="list" aria-label="Key numbers">
+        <div class="card" role="listitem"><div class="metric-label">Indexed lectures</div><div class="metric" id="mTasks">—</div><div class="metric-note" id="mSubjects"></div></div>
+        <div class="card" role="listitem"><div class="metric-label">Completed</div><div class="metric" id="mDone">—</div><div class="progress" role="progressbar" aria-label="Completed lectures" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="pDoneBar"><span id="pDone"></span></div></div>
+        <div class="card" role="listitem"><div class="metric-label">Video runtime</div><div class="metric" id="mRuntime">—</div><div class="metric-note">Missing timings count as 20 min</div></div>
+        <div class="card" role="listitem"><div class="metric-label">Study time needed</div><div class="metric" id="mPlanned">—</div><div class="metric-note">Runtime + annotation + recall</div></div>
       </div>
       <div class="grid2 even" id="insights">
         <section class="panel" aria-labelledby="h-subjects">
