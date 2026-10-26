@@ -337,6 +337,53 @@ export async function addTask() {
   toast(`Added ${plural(added.length, 'task')} for ${result.subject}. Select them and use Schedule selected to place them.`);
 }
 
+/** Replace a scheduled slot with an unscheduled compatible task. The displaced task remains in the library. */
+export async function replaceTaskAction(id) {
+  const target = findTask(id);
+  if (!target || target.done || !target.scheduledDate || target.generated) {
+    toast('Replace is available for scheduled, unfinished library tasks.', { type: 'warn' });
+    return;
+  }
+  const candidates = () => state.tasks.filter((t) => !t.generated && !t.done && !t.scheduledDate && t.id !== target.id && isSchedulable(t) && isCompatible(t, blockOf(target)));
+  const result = await openDialog({
+    title: 'Replace this scheduled task',
+    body: '<p><strong>Current slot:</strong> ' + esc(target.title) + ' · ' + esc(fmtDate(target.scheduledDate)) + ' · ' + esc(BLOCK_INFO[blockOf(target)].name) + '</p>' +
+      '<p class="hint">The replacement takes this slot. The original stays in your library, unscheduled and unfinished — nothing is deleted.</p>' +
+      '<div class="field"><label for="rp-search">Find a replacement</label><input id="rp-search" type="search" placeholder="Search title or subject" autocomplete="off"></div>' +
+      '<div class="pick-list" id="rp-list" role="radiogroup" aria-label="Replacement task"></div><p class="hint" id="rp-count" role="status"></p>',
+    submitLabel: 'Replace in this slot',
+    onOpen(form) {
+      const q = form.querySelector('#rp-search'), list = form.querySelector('#rp-list'), count = form.querySelector('#rp-count');
+      const refresh = () => {
+        const query = q.value.trim().toLowerCase();
+        const found = candidates().filter((t) => !query || t.title.toLowerCase().includes(query) || t.subject.toLowerCase().includes(query));
+        list.innerHTML = found.slice(0, 80).map((t) => '<label><input type="radio" name="replacement" value="' + esc(t.id) + '"><span><strong>' + esc(t.subject) + '</strong> · ' + esc(t.title) + ' <span class="muted small">(' + Math.round(t.durationSec / 60) + ' min)</span></span></label>').join('') || '<p class="empty">No compatible unscheduled tasks. Add one or choose another work block first.</p>';
+        count.textContent = found.length > 80 ? 'Showing 80 of ' + found.length + '; search to narrow it down.' : found.length + ' compatible tasks available';
+        const first = list.querySelector('input'); if (first) first.checked = true;
+      };
+      q.addEventListener('input', refresh); refresh();
+    },
+    onSubmit: ({ replacement }) => (replacement && candidates().some((t) => t.id === replacement) ? { replacement } : 'Choose a compatible replacement task.'),
+  });
+  if (!result || result === true) return;
+  const replacement = findTask(result.replacement);
+  if (!replacement || replacement.scheduledDate || replacement.done || !isCompatible(replacement, blockOf(target))) {
+    toast('That task is no longer available to replace this slot.', { type: 'error' }); return;
+  }
+  const oldDate = target.scheduledDate, oldBlock = blockOf(target);
+  unscheduleTask(state, target.id);
+  const out = assignTask(state, replacement.id, oldDate, oldBlock);
+  if (out.error) {
+    assignTask(state, target.id, oldDate, oldBlock);
+    toast(out.error, { type: 'error' }); return;
+  }
+  commit();
+  toast('Replaced the slot with "' + replacement.title + '". "' + target.title + '" remains in your library, unscheduled.', {
+    action: { label: 'Undo', run: () => { assignTask(state, target.id, oldDate, oldBlock); unscheduleTask(state, replacement.id); commit(); toast('Replacement undone.'); } },
+  });
+  warnAfterPlacement(oldDate, oldBlock);
+}
+
 export async function bulkSchedule(ids) {
   const selected = state.tasks.filter((t) => ids.includes(t.id) && !t.done && !t.generated);
   if (!selected.length) {
