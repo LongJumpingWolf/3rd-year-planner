@@ -306,7 +306,7 @@ export async function addToDate(iso, block = 'focus') {
 
 export async function addTask() {
   const result = await openDialog({
-    title: 'Add a task',
+    title: 'Quick-add tasks',
     body: `<div class="field"><label for="nt-titles">Task titles</label><textarea id="nt-titles" name="titles" required maxlength="6000" rows="5" placeholder="One task per line — paste a whole list"></textarea><span class="hint">Add up to 30 tasks at once. New subject names are created automatically.</span></div>
       <div class="field"><label for="nt-subject">Subject / new subject</label><input id="nt-subject" name="subject" value="" maxlength="60" placeholder="e.g. Medicine" list="nt-subjects" required>
         <datalist id="nt-subjects">${[...new Set(state.tasks.map((t) => t.subject))].sort().map((s) => `<option value="${esc(s)}">`).join('')}</datalist></div>
@@ -315,7 +315,7 @@ export async function addTask() {
         <option value="deep">Deep — lecture or difficult concept (Focused work)</option>
         <option value="light">Light — revision, MCQs, recall, indexing (College gaps)</option></select></div>
       <div class="field"><label for="nt-min">Estimated time (minutes)</label><input id="nt-min" name="min" type="number" min="1" max="1000" step="1" value="20"></div>`,
-    submitLabel: 'Add task',
+    submitLabel: 'Add tasks',
     onSubmit: ({ titles, subject, category, min, intensity }) => {
       const list = String(titles || '').split(/\r?\n/).map((x) => x.trim()).filter(Boolean);
       if (!list.length) return 'Enter at least one task title.';
