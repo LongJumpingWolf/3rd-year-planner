@@ -18,6 +18,7 @@ export function taskCardHTML(t, ctx = 'list', { reason } = {}) {
       ${back ? `<button type="button" class="small primary" ${actionAttrs('auto-place', t.id, ctx)} aria-label="Next free slot: ${esc(label)}">Next free slot</button>` : ''}
       <button type="button" class="small" ${actionAttrs('move', t.id, ctx)} aria-label="Move: ${esc(label)}">Move</button>
       <button type="button" class="small" ${actionAttrs('edit', t.id, ctx)} aria-label="Edit: ${esc(label)}">Edit</button>
+      ${t.status === 'custom_estimate' ? `<button type="button" class="small danger-text" ${actionAttrs('delete-task', t.id, ctx)} aria-label="Remove added task: ${esc(label)}">Remove</button>` : ''}
       ${back && isSchedulable(t) && !t.parentId && !t.done ? `<button type="button" class="small" ${actionAttrs('split', t.id, ctx)} aria-label="Split: ${esc(label)}">Split</button>` : ''}</div>
   </div>`;
 }
