@@ -110,6 +110,7 @@ document.addEventListener('click', (e) => {
     }
     case 'move': actions.moveTask(id); break;
     case 'edit': actions.editTask(id); break;
+    case 'replace': actions.replaceTaskAction(id); break;
     case 'split': actions.splitTaskAction(id); break;
     case 'auto-place': actions.autoPlaceAction(id); break;
     case 'add-to-date': actions.addToDate(id, el.dataset.block || 'focus'); break;
