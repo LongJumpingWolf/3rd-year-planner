@@ -304,26 +304,43 @@ export async function addToDate(iso, block = 'focus') {
   warnAfterPlacement(iso, block);
 }
 
-export async function addTask() {
+export async function addTask({ date = '', block = '' } = {}) {
+  const defaultDate = isValidISO(date) ? date : (document.getElementById('focusDate')?.value || todayISO());
+  const direct = isValidISO(date);
+  const subjects = [...new Set(state.tasks.map((t) => t.subject))].sort();
   const result = await openDialog({
-    title: 'Quick-add tasks',
-    body: `<div class="field"><label for="nt-titles">Task titles</label><textarea id="nt-titles" name="titles" required maxlength="6000" rows="5" placeholder="One task per line — paste a whole list"></textarea><span class="hint">Add up to 30 tasks at once. New subject names are created automatically.</span></div>
-      <div class="field"><label for="nt-subject">Subject / new subject</label><input id="nt-subject" name="subject" value="" maxlength="60" placeholder="e.g. Medicine" list="nt-subjects" required>
-        <datalist id="nt-subjects">${[...new Set(state.tasks.map((t) => t.subject))].sort().map((s) => `<option value="${esc(s)}">`).join('')}</datalist></div>
-      <div class="field"><label for="nt-category">Section / category</label><input id="nt-category" name="category" value="Custom task" maxlength="80" placeholder="e.g. Respiratory medicine"></div>
-      <div class="field"><label for="nt-int">Type of work</label><select id="nt-int" name="intensity">
-        <option value="deep">Deep — lecture or difficult concept (Focused work)</option>
-        <option value="light">Light — revision, MCQs, recall, indexing (College gaps)</option></select></div>
-      <div class="field"><label for="nt-min">Estimated time (minutes)</label><input id="nt-min" name="min" type="number" min="1" max="1000" step="1" value="20"></div>`,
+    title: direct ? 'Add to your day' : 'Add tasks',
+    body: `<p class="hint">One task per line. Add up to 30 at once; use a subject already in the list or type a new one.</p>
+      <div class="field"><label for="nt-titles">What do you need to do?</label><textarea id="nt-titles" name="titles" required maxlength="6000" rows="4" placeholder="e.g. Revise asthma
+Solve 25 respiratory MCQs"></textarea></div>
+      <div class="form-grid two">
+        <div class="field"><label for="nt-subject">Subject</label><input id="nt-subject" name="subject" maxlength="60" placeholder="e.g. Medicine" list="nt-subjects" required>
+          <datalist id="nt-subjects">${subjects.map((s) => `<option value="${esc(s)}">`).join('')}</datalist></div>
+        <div class="field"><label for="nt-category">Section (optional)</label><input id="nt-category" name="category" value="Custom task" maxlength="80" placeholder="e.g. Respiratory medicine"></div>
+        <div class="field"><label for="nt-int">Kind of work</label><select id="nt-int" name="intensity"><option value="deep">Lecture / new concepts</option><option value="light">Revision / MCQs / recall</option></select></div>
+        <div class="field"><label for="nt-min">Minutes per task</label><input id="nt-min" name="min" type="number" min="1" max="1000" step="1" value="20" required></div>
+      </div>
+      <details open>
+        <summary>When should it happen?</summary>
+        <div class="form-grid two" style="margin-top:10px">
+          <div class="field"><label for="nt-date">Date</label><input id="nt-date" name="date" type="date" value="${esc(defaultDate)}" required></div>
+          <div class="field"><label for="nt-block">Work block</label><select id="nt-block" name="block">
+            <option value="auto" ${!block ? 'selected' : ''}>Choose best fit</option>
+            <option value="focus" ${block === 'focus' ? 'selected' : ''}>Focused work</option>
+            <option value="light" ${block === 'light' ? 'selected' : ''}>Light work</option></select></div>
+        </div>
+        <label class="check"><input type="checkbox" name="schedule" value="yes" ${direct ? 'checked' : ''}> <span>Add straight to this date (otherwise leave in the library)</span></label>
+      </details>`,
     submitLabel: 'Add tasks',
-    onSubmit: ({ titles, subject, category, min, intensity }) => {
-      const list = String(titles || '').split(/\r?\n/).map((x) => x.trim()).filter(Boolean);
+    onSubmit: ({ titles, subject, category, min, intensity, date: iso, block: chosenBlock, schedule }) => {
+      const list = String(titles || '').split(/\\r?\\n/).map((x) => x.trim()).filter(Boolean);
       if (!list.length) return 'Enter at least one task title.';
       if (list.length > 30) return 'Add up to 30 tasks at a time.';
-      if (!String(subject || '').trim()) return 'Enter a subject; type a new name if needed.';
+      if (!String(subject || '').trim()) return 'Enter a subject. You can type a new subject name.';
       const m = Number(min);
-      if (!Number.isFinite(m) || m < 1 || m > 1000) return 'Runtime must be between 1 and 1000 minutes.';
-      return { titles: list, subject: subject.trim(), category: category.trim() || 'Custom task', min: m, intensity };
+      if (!Number.isFinite(m) || m < 1 || m > 1000) return 'Minutes per task must be between 1 and 1000.';
+      if (schedule && !isValidISO(iso)) return 'Choose a valid date.';
+      return { titles: list, subject: subject.trim(), category: String(category || '').trim() || 'Custom task', min: m, intensity, date: iso, block: chosenBlock || 'auto', schedule: !!schedule };
     },
   });
   if (!result || result === true) return;
@@ -333,8 +350,44 @@ export async function addTask() {
     done: false, type: result.intensity === 'light' ? 'custom' : 'video', scheduledDate: null, selected: false,
   }));
   state.tasks.push(...added);
+  let placed = 0;
+  const touched = new Set();
+  if (result.schedule) {
+    for (const t of added) {
+      const chosen = result.block === 'auto' ? recommendedBlock(t) : result.block;
+      const out = assignTask(state, t.id, result.date, chosen, { override: chosen === 'light' && intensityOf(t) === 'deep' });
+      if (!out.error) { placed++; touched.add(chosen); }
+    }
+  }
   commit();
-  toast(`Added ${plural(added.length, 'task')} for ${result.subject}. Select them and use Schedule selected to place them.`);
+  const summary = result.schedule
+    ? `Added ${added.length} task${added.length === 1 ? '' : 's'} to ${fmtDate(result.date)} (${placed} placed; ${added.length - placed} left unscheduled if any did not fit).`
+    : `Added ${added.length} task${added.length === 1 ? '' : 's'} to ${result.subject}. Select them in Task library when you are ready to schedule.`;
+  toast(summary, { type: result.schedule && placed < added.length ? 'warn' : 'ok', ms: 9000 });
+  touched.forEach((b) => warnAfterPlacement(result.date, b));
+}
+
+/** Remove a user-created task, with confirmation and a full-state Undo. */
+export async function deleteTaskAction(id) {
+  const t = findTask(id);
+  if (!t || t.generated || t.status !== 'custom_estimate') {
+    toast('Only tasks you added yourself can be deleted here. Built-in lectures can be moved to the backlog instead.', { type: 'warn' });
+    return;
+  }
+  const ok = await confirmDialog({
+    title: 'Remove this task?',
+    message: `“${t.title}” will be removed from your plan and task library. You can undo this immediately afterwards.`,
+    confirmLabel: 'Remove task',
+    danger: true,
+  });
+  if (!ok) return;
+  const snap = JSON.stringify(state);
+  state.tasks = state.tasks.filter((x) => x.id !== id);
+  state.backlog = state.backlog.filter((x) => x.taskId !== id);
+  commit();
+  toast('Task removed.', {
+    action: { label: 'Undo', run: () => { replaceState(JSON.parse(snap)); commit(); toast('Task restored.'); } },
+  });
 }
 
 /** Replace a scheduled slot with an unscheduled compatible task. The displaced task remains in the library. */
