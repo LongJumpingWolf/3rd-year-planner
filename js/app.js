@@ -56,7 +56,7 @@ function showPage(name, { moveFocus = true, arg } = {}) {
     if (a.dataset.page === current) a.setAttribute('aria-current', 'page');
     else a.removeAttribute('aria-current');
   });
-  document.title = `${PAGES[current].title} · MBBS Study Command Center`;
+  document.title = `${PAGES[current].title} · MBBS Study Planner`;
   PAGES[current].render();
   renderCatchup();
   if (moveFocus) {
