@@ -57,7 +57,7 @@ export function blockSectionHTML(day, block, ctx, { headingLevel = 3, actions = 
   const closed = day.kind === 'trip' || day.kind === 'off';
   return `<section class="block block-${block}" aria-labelledby="${hid}">
     <div class="block-head">
-      <h${headingLevel} id="${hid}">${esc(info.name.toUpperCase())} — ${esc(info.where.toUpperCase())}</h${headingLevel}>
+      <h${headingLevel} id="${hid}">${esc(info.name)} <span class="where">— ${esc(info.where)}</span></h${headingLevel}>
       <span class="status ${st.cls}">${st.cls === 'over' ? '⚠ ' : ''}${esc(st.text)}</span>
     </div>
     <p class="block-totals"><strong>${fmtDur(b.planned * 3600)} / ${fmtDur(b.cap * 3600)}</strong> planned · <strong>${fmtDur(b.done * 3600)}</strong> completed</p>
