@@ -317,7 +317,7 @@ export async function addTask() {
       <div class="field"><label for="nt-min">Estimated time (minutes)</label><input id="nt-min" name="min" type="number" min="1" max="1000" step="1" value="20"></div>`,
     submitLabel: 'Add task',
     onSubmit: ({ titles, subject, category, min, intensity }) => {
-      const list = String(titles || '').split(/\\r?\\n/).map((x) => x.trim()).filter(Boolean);
+      const list = String(titles || '').split(/\r?\n/).map((x) => x.trim()).filter(Boolean);
       if (!list.length) return 'Enter at least one task title.';
       if (list.length > 30) return 'Add up to 30 tasks at a time.';
       if (!String(subject || '').trim()) return 'Enter a subject; type a new name if needed.';
