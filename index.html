@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark">
 <meta name="description" content="Offline-first MBBS study planner with an automatic scheduler, weekly calendar, task library and what-if simulator.">
-<title>MBBS Study Command Center</title>
+<title>MBBS Study Planner</title>
 <meta name="theme-color" content="#1b2a33">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
@@ -17,8 +17,8 @@
 
 <header class="topbar">
   <div class="brand">
-    <h1>MBBS Study Command Center</h1>
-    <p>Plan, track and reschedule your study without the stress.</p>
+    <h1>MBBS Study Planner</h1>
+    <p>Your lectures, revision and catch-up in one place.</p>
   </div>
   <div class="top-actions" role="group" aria-label="Backup and help">
     <button type="button" id="accountBtn" aria-haspopup="dialog">Sign in with Google</button>
@@ -53,8 +53,9 @@
     <!-- DASHBOARD -->
     <section class="page" id="page-dashboard" aria-labelledby="h-dashboard" hidden>
       <div class="heading">
-        <div><h2 id="h-dashboard" tabindex="-1">Dashboard</h2><p class="sub">Your plan should adapt to reality, not punish you for it.</p></div>
+        <div><h2 id="h-dashboard" tabindex="-1">Dashboard</h2><p class="sub">Today’s plan, with room to adjust it.</p></div>
         <div class="row">
+          <button type="button" class="primary" id="dashboardAddTask">+ Add task</button>
           <button type="button" id="shareBtn" aria-haspopup="dialog" hidden>Share progress</button>
           <div class="field inline"><label for="focusDate">View date</label><input type="date" id="focusDate"></div>
         </div>
@@ -130,6 +131,7 @@
           <label class="sr-only" for="dayDate">Pick a date</label>
           <input type="date" id="dayDate">
           <button type="button" id="nextDay" aria-label="Next day">Next →</button>
+          <button type="button" class="primary" id="dayAddTask">+ Add task</button>
           <button type="button" id="daySettingsBtn" aria-haspopup="dialog">Day settings…</button>
         </div>
       </div>
