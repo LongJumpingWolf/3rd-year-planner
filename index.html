@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark">
 <meta name="description" content="A practical MBBS study planner for lectures, revision, task scheduling and catch-up.">
-<title>MBBS Study Planner</title>
-<meta name="theme-color" content="#202722">
+<title>Study Desk — MBBS Planner</title>
+<meta name="theme-color" content="#252b25">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <script>try{var t=localStorage.getItem("mbbsTheme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t;}catch(e){}</script>
@@ -18,7 +18,7 @@
 <header class="topbar">
   <div class="brand">
     <h1>MBBS Study Planner</h1>
-    <p>Your lectures, revision and catch-up in one place.</p>
+    <p>A quieter, clearer way to keep your clinical years on track.</p>
   </div>
   <div class="top-actions" role="group" aria-label="Backup and help">
     <button type="button" id="accountBtn" aria-haspopup="dialog">Sign in with Google</button>
@@ -33,13 +33,13 @@
 <div class="layout">
   <nav class="sidebar" aria-label="Main">
     <ul class="nav" id="nav">
-      <li><a href="#dashboard" data-page="dashboard"><span>Dashboard</span><small>Overview and risk</small></a></li>
-      <li><a href="#day" data-page="day"><span>Daily view</span><small>Light + focused work</small></a></li>
-      <li><a href="#calendar" data-page="calendar"><span>Weekly calendar</span><small>The week at a glance</small></a></li>
-      <li><a href="#tasks" data-page="tasks"><span>Task library</span><small>All indexed lectures</small></a></li>
-      <li><a href="#simulator" data-page="simulator"><span>What-if simulator</span><small>Buffer and backlog</small></a></li>
-      <li><a href="#data" data-page="data"><span>Data audit</span><small>Verified vs estimated</small></a></li>
-      <li><a href="#settings" data-page="settings"><span>Settings</span><small>Study-time assumptions</small></a></li>
+      <li><a href="#dashboard" data-page="dashboard"><span>Overview</span><small>Progress and priorities</small></a></li>
+      <li><a href="#day" data-page="day"><span>Today</span><small>Your study agenda</small></a></li>
+      <li><a href="#calendar" data-page="calendar"><span>Week</span><small>Capacity and schedule</small></a></li>
+      <li><a href="#tasks" data-page="tasks"><span>Library</span><small>Lectures and custom tasks</small></a></li>
+      <li><a href="#simulator" data-page="simulator"><span>Catch-up</span><small>Plan around disruptions</small></a></li>
+      <li><a href="#data" data-page="data"><span>Data quality</span><small>Verified and estimated</small></a></li>
+      <li><a href="#settings" data-page="settings"><span>Preferences</span><small>Study-time assumptions</small></a></li>
     </ul>
   </nav>
 
@@ -53,7 +53,7 @@
     <!-- DASHBOARD -->
     <section class="page" id="page-dashboard" aria-labelledby="h-dashboard" hidden>
       <div class="heading">
-        <div><h2 id="h-dashboard" tabindex="-1">Dashboard</h2><p class="sub">Today’s plan, with room to adjust it.</p></div>
+        <div><h2 id="h-dashboard" tabindex="-1">Dashboard</h2><p class="sub">A practical agenda for the day. Adjust it as real life happens.</p></div>
         <div class="row">
           <button type="button" class="primary" id="dashboardAddTask">+ Add task</button>
           <button type="button" id="shareBtn" aria-haspopup="dialog" hidden>Share progress</button>
@@ -63,7 +63,7 @@
       <details class="planning-note"><summary>About this plan</summary><p>The schedule uses the lecture titles in your library, flags estimated durations and protects your saved trip dates. Finish targets and capacity assumptions are in the weekly calendar.</p></details>
       <div class="grid2">
         <section class="panel" aria-labelledby="h-today">
-          <h3 id="h-today">Light and focused work for the selected date</h3>
+          <h3 id="h-today">Your agenda</h3>
           <p class="sub small" id="todaySummary"></p>
           <div class="today-blocks" id="todayTasks"></div>
           <div class="row actions">
@@ -73,7 +73,7 @@
           </div>
         </section>
         <section class="panel" aria-labelledby="h-buffer">
-          <h3 id="h-buffer">Buffer reserve this week</h3>
+          <h3 id="h-buffer">Time in reserve</h3>
           <div class="row between"><span class="muted">Free time after planned work</span><strong id="bufferMetric">—</strong></div>
           <div class="progress meter" role="progressbar" aria-label="Free time compared with the weekly buffer target" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="bufferBarWrap"><span id="bufferBar"></span></div>
           <p class="small muted" id="bufferCopy"></p>
@@ -86,10 +86,10 @@
       </div>
 
       <div class="cards" role="list" aria-label="Key numbers">
-        <div class="card" role="listitem"><div class="metric-label">Indexed lectures</div><div class="metric" id="mTasks">—</div><div class="metric-note" id="mSubjects"></div></div>
+        <div class="card" role="listitem"><div class="metric-label">In your library</div><div class="metric" id="mTasks">—</div><div class="metric-note" id="mSubjects"></div></div>
         <div class="card" role="listitem"><div class="metric-label">Completed</div><div class="metric" id="mDone">—</div><div class="progress" role="progressbar" aria-label="Completed lectures" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="pDoneBar"><span id="pDone"></span></div></div>
         <div class="card" role="listitem"><div class="metric-label">Video runtime</div><div class="metric" id="mRuntime">—</div><div class="metric-note">Missing timings count as 20 min</div></div>
-        <div class="card" role="listitem"><div class="metric-label">Study time needed</div><div class="metric" id="mPlanned">—</div><div class="metric-note">Runtime + annotation + recall</div></div>
+        <div class="card" role="listitem"><div class="metric-label">Estimated study time</div><div class="metric" id="mPlanned">—</div><div class="metric-note">Runtime + annotation + recall</div></div>
       </div>
       <div class="grid2 even" id="insights">
         <section class="panel" aria-labelledby="h-subjects">
