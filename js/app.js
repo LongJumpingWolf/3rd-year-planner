@@ -165,6 +165,8 @@ $('#helpBtn').addEventListener('click', showShortcuts);
 
 // ---- dashboard ---------------------------------------------------------------------------------
 
+$('#dashboardAddTask').addEventListener('click', () => actions.addTask({ date: $('#focusDate').value }));
+
 $('#focusDate').addEventListener('change', (e) => {
   if (!isValidISO(e.target.value)) e.target.value = dateISO(new Date());
   $('#weekDate').value = e.target.value;
@@ -190,6 +192,7 @@ $('#extraForm').addEventListener('submit', (e) => {
   if (!err) input.value = '';
   input.focus();
 });
+$('#dayAddTask').addEventListener('click', () => actions.addTask({ date: currentDayISO() }));
 $('#daySettingsBtn').addEventListener('click', () => actions.dayDialog(currentDayISO()));
 
 // ---- calendar ----------------------------------------------------------------------------------
