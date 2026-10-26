@@ -65,6 +65,7 @@ export function blockSectionHTML(day, block, ctx, { headingLevel = 3, actions = 
     ${items ? `<ul class="btasks">${items}</ul>` : `<p class="empty small">${closed ? esc(day.note) : block === 'light' ? 'No light-work tasks planned. Add short revision, MCQs or recall here.' : 'No focused-work tasks planned.'}</p>`}
     ${actions && !closed ? `<div class="row actions">
       <button type="button" class="small" ${actionAttrs('add-to-date', day.iso, `${ctx}-${block}`)} data-block="${block}" aria-label="+ Add task to ${esc(info.name.toLowerCase())}">+ Add task</button>
+      <button type="button" class="small primary" ${actionAttrs('quick-add-task', day.iso, `${ctx}-${block}`)} data-block="${block}" aria-label="Create new task for ${esc(info.name.toLowerCase())}">+ New task</button>
       ${b.over > 0.001 ? `<button type="button" class="small" ${actionAttrs('fix-overflow', day.iso, `${ctx}-${block}`)} data-block="${block}" aria-label="Move overflow out of ${esc(info.name.toLowerCase())}">Move overflow to next free slot</button>` : ''}
     </div>` : ''}
   </section>`;
