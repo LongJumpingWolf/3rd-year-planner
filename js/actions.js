@@ -307,29 +307,34 @@ export async function addToDate(iso, block = 'focus') {
 export async function addTask() {
   const result = await openDialog({
     title: 'Add a task',
-    body: `<div class="field"><label for="nt-title">Title</label><input id="nt-title" name="title" required maxlength="160"></div>
-      <div class="field"><label for="nt-subject">Subject</label><input id="nt-subject" name="subject" value="General" maxlength="60" list="nt-subjects">
+    body: `<div class="field"><label for="nt-titles">Task titles</label><textarea id="nt-titles" name="titles" required maxlength="6000" rows="5" placeholder="One task per line — paste a whole list"></textarea><span class="hint">Add up to 30 tasks at once. New subject names are created automatically.</span></div>
+      <div class="field"><label for="nt-subject">Subject / new subject</label><input id="nt-subject" name="subject" value="" maxlength="60" placeholder="e.g. Medicine" list="nt-subjects" required>
         <datalist id="nt-subjects">${[...new Set(state.tasks.map((t) => t.subject))].sort().map((s) => `<option value="${esc(s)}">`).join('')}</datalist></div>
+      <div class="field"><label for="nt-category">Section / category</label><input id="nt-category" name="category" value="Custom task" maxlength="80" placeholder="e.g. Respiratory medicine"></div>
       <div class="field"><label for="nt-int">Type of work</label><select id="nt-int" name="intensity">
         <option value="deep">Deep — lecture or difficult concept (Focused work)</option>
         <option value="light">Light — revision, MCQs, recall, indexing (College gaps)</option></select></div>
       <div class="field"><label for="nt-min">Estimated time (minutes)</label><input id="nt-min" name="min" type="number" min="1" max="1000" step="1" value="20"></div>`,
     submitLabel: 'Add task',
-    onSubmit: ({ title, subject, min, intensity }) => {
-      if (!title.trim()) return 'Please enter a title.';
+    onSubmit: ({ titles, subject, category, min, intensity }) => {
+      const list = String(titles || '').split(/\\r?\\n/).map((x) => x.trim()).filter(Boolean);
+      if (!list.length) return 'Enter at least one task title.';
+      if (list.length > 30) return 'Add up to 30 tasks at a time.';
+      if (!String(subject || '').trim()) return 'Enter a subject; type a new name if needed.';
       const m = Number(min);
-      if (!Number.isFinite(m) || m <= 0) return 'Runtime must be a positive number of minutes.';
-      return { title: title.trim(), subject: subject.trim() || 'General', min: m, intensity };
+      if (!Number.isFinite(m) || m < 1 || m > 1000) return 'Runtime must be between 1 and 1000 minutes.';
+      return { titles: list, subject: subject.trim(), category: category.trim() || 'Custom task', min: m, intensity };
     },
   });
   if (!result || result === true) return;
-  state.tasks.push({
-    id: newId(), subject: result.subject, category: 'Custom task', title: result.title, intensity: result.intensity,
+  const added = result.titles.map((title) => ({
+    id: newId(), subject: result.subject, category: result.category, title, intensity: result.intensity,
     durationSec: Math.round(result.min * 60), sourceDuration: `${result.min} min`, status: 'custom_estimate',
     done: false, type: result.intensity === 'light' ? 'custom' : 'video', scheduledDate: null, selected: false,
-  });
+  }));
+  state.tasks.push(...added);
   commit();
-  toast(`Added "${result.title}" as ${result.intensity === 'light' ? 'light' : 'focused'} work. Re-run the scheduler to place it.`);
+  toast(`Added ${plural(added.length, 'task')} for ${result.subject}. Select them and use Schedule selected to place them.`);
 }
 
 export async function bulkSchedule(ids) {
