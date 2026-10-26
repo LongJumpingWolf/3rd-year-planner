@@ -953,3 +953,43 @@ kbd { border-radius:2px; }
  .metric { font-size:25px; }
 }
 @media (prefers-reduced-motion:reduce) { *,*::before,*::after { scroll-behavior:auto!important; transition:none!important; animation:none!important; } }
+
+/* Light mode is the product default; dark remains available only by explicit choice. */
+:root { color-scheme: light; }
+:root:not([data-theme="dark"]) {
+ --bg:#f1eee6; --surface:#fffdf8; --surface-2:#e9e5da; --ink:#252b25; --muted:#687064;
+ --line:#d5d0c4; --accent:#a6422b; --accent-ink:#fffaf4; --accent-soft:#f2e1d8;
+ --good:#32664c; --good-soft:#e2ece2; --warn:#805a1c; --warn-soft:#f3ead4; --bad:#a53f35; --bad-soft:#f5e3dd;
+ --focus:#a6422b; --light-c:#36705a; --light-soft:#e1ece2; --focus-c:#a6422b; --focus-soft:#f2e1d8;
+ --topbar:#252b25; --topbar-ink:#fffdf8; --topbar-muted:#c8cbbf;
+}
+:root[data-theme="dark"] { color-scheme:dark; }
+@media (prefers-color-scheme:dark) {
+ :root:not([data-theme="light"]):not([data-theme="dark"]) {
+  --bg:#f1eee6;--surface:#fffdf8;--surface-2:#e9e5da;--ink:#252b25;--muted:#687064;--line:#d5d0c4;
+  --accent:#a6422b;--accent-ink:#fffaf4;--accent-soft:#f2e1d8;--good:#32664c;--good-soft:#e2ece2;
+  --warn:#805a1c;--warn-soft:#f3ead4;--bad:#a53f35;--bad-soft:#f5e3dd;--focus:#a6422b;
+  --light-c:#36705a;--light-soft:#e1ece2;--focus-c:#a6422b;--focus-soft:#f2e1d8;
+  --topbar:#252b25;--topbar-ink:#fffdf8;--topbar-muted:#c8cbbf;
+ }
+}
+/* App-like layout: compact left rail on desktop, anchored bottom rail on phones. */
+@media (min-width:701px) {
+ .topbar { position:relative; }
+ .layout { grid-template-columns:210px minmax(0,1fr); }
+ .sidebar { position:sticky; top:0; height:calc(100vh - 0px); }
+ .nav a { min-height:48px; justify-content:center; }
+ main { max-width:none; }
+ #page-dashboard .heading { min-height:108px; }
+ #page-dashboard .grid2:first-of-type { grid-template-columns:minmax(0,1.65fr) minmax(250px,1fr); }
+ #page-dashboard .grid2:first-of-type > .panel:first-child { min-height:250px; }
+ #page-dashboard .cards { margin-top:4px; }
+}
+@media (max-width:700px) {
+ .sidebar { top:auto; bottom:0; border-bottom:0; border-top:1px solid var(--line); padding:6px 7px max(6px, env(safe-area-inset-bottom)); }
+ .layout { padding-bottom:62px; }
+ .nav { justify-content:flex-start; }
+ .nav a { min-width:60px; text-align:center; padding:8px 10px; }
+ .nav a[aria-current="page"] { box-shadow:inset 0 -2px 0 var(--accent-ink); }
+ main { padding-top:20px; }
+}
