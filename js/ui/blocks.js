@@ -36,6 +36,7 @@ function taskItem(t, ctx, { time, late, actions, mismatch }) {
     </div>
     ${manage ? `<div class="btask-actions">
       <button type="button" class="small" ${actionAttrs('move', t.id, ctx)} aria-label="Move: ${esc(label)}">Move</button>
+      ${t.scheduledDate && !t.done ? `<button type="button" class="small" ${actionAttrs('quick-push', t.id, ctx)} aria-label="Quick-push forward: ${esc(label)}">Quick push →</button>` : ''}
       <button type="button" class="small" ${actionAttrs('edit', t.id, ctx)} aria-label="Edit: ${esc(label)}">Edit</button>
       ${t.status === 'custom_estimate' ? `<button type="button" class="small danger-text" ${actionAttrs('delete-task', t.id, ctx)} aria-label="Remove added task: ${esc(label)}">Remove</button>` : ''}
       ${isSchedulable(t) && !t.done && !t.parentId ? `<button type="button" class="small" ${actionAttrs('split', t.id, ctx)} aria-label="Split: ${esc(label)}">Split</button>` : ''}
