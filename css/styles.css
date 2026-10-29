@@ -1763,3 +1763,61 @@ code { font-family:var(--font-mono); font-size:.9em; background:var(--surface-2)
 #page-dashboard .planning-note{margin:0 0 20px}
 @media(max-width:900px){.study-hero{grid-template-columns:minmax(0,1fr) 220px}.study-hero-copy{padding:28px}.study-hero h2{font-size:clamp(46px,7vw,66px)}.study-hero-aside{padding:22px}}
 @media(max-width:640px){.study-hero{grid-template-columns:minmax(0,1fr)}.study-hero-copy{padding:27px 23px 30px}.study-hero h2{font-size:60px;margin-top:18px}.study-hero-note{margin-top:17px}.study-hero-actions{margin-top:20px}.study-hero-aside{border-left:0;border-top:1px solid var(--line-strong);padding:18px 23px;display:grid;grid-template-columns:1fr 1fr;gap:8px 15px;align-items:center}.study-hero-aside .hero-aside-label{grid-column:1/-1}.hero-date-label{margin:0;font-size:16px}.study-hero-aside input{grid-column:2;grid-row:2}.study-hero-aside p{grid-column:1/-1;max-width:none;margin:5px 0 10px}.hero-index{grid-column:1/-1;margin-top:0}}
+
+
+/* Spacious workspace pass: quiet utilities, clear hierarchy, room to scan. */
+.topbar{gap:18px;align-items:center}
+.top-actions{gap:10px;flex-wrap:nowrap}
+.utility-menu{position:relative;z-index:30}
+.utility-menu>summary{list-style:none;display:flex;align-items:center;justify-content:center;gap:7px;min-height:42px;min-width:44px;padding:0 13px;border:1px solid var(--line-strong);background:var(--surface);color:var(--ink);cursor:pointer;font-size:12px}
+.utility-menu>summary::-webkit-details-marker{display:none}
+.utility-menu>summary span:first-child{font-size:18px;line-height:1}
+.utility-menu[open]>summary{border-color:var(--accent);color:var(--accent)}
+.utility-menu-panel{position:absolute;right:0;top:calc(100% + 9px);width:min(290px,calc(100vw - 28px));padding:16px;background:var(--surface);border:1px solid var(--line-strong);box-shadow:0 16px 44px #20272020;display:flex;flex-direction:column;gap:8px}
+.utility-menu-panel button,.utility-settings-link{width:100%;min-height:40px;text-align:left;display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border:1px solid var(--line);background:transparent;color:var(--ink);text-decoration:none;font-size:12px}
+.utility-menu-panel button:hover,.utility-settings-link:hover{background:#e9e5d9}
+.utility-menu-title{margin:0 0 2px;font:500 10px/1.4 var(--font-mono);letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.utility-menu-note{margin:3px 0 5px;font-size:11px;line-height:1.55;color:var(--muted)}
+.utility-menu-divider{height:1px;background:var(--line);margin:3px 0}
+.utility-menu kbd{margin-left:8px}
+main{max-width:1500px;margin-inline:auto;padding:clamp(18px,3vw,38px) clamp(16px,3vw,42px) 64px}
+.page{gap:clamp(22px,3vw,34px)}
+.page>.heading{margin-bottom:6px}
+.panel{padding:clamp(19px,2.2vw,28px);margin-bottom:clamp(18px,2.4vw,28px)}
+.cards{gap:14px;margin:24px 0 30px}
+.grid2{gap:20px;margin:24px 0 30px}
+.grid2>.panel{margin:0;min-width:0}
+.page h2{margin-top:0}
+.page h3{margin-top:0;margin-bottom:15px}
+.sub,.small{line-height:1.65}
+.today-blocks,.task-list,.subject-bars,.phase-list{gap:12px}
+.heading{gap:20px;align-items:flex-end}
+.heading .row{gap:8px;flex-wrap:wrap}
+#page-day .blocks-grid{gap:18px;margin-top:20px}
+#page-calendar .week-grid{gap:12px}
+#page-calendar .week-grid>.day{padding:16px}
+#page-tasks .panel,#page-settings .panel{margin-bottom:24px}
+@media(max-width:760px){
+  .topbar{align-items:flex-start;gap:12px}
+  .top-actions{gap:7px}
+  .utility-menu-label{display:none}
+  .utility-menu>summary{min-height:40px;width:42px;padding:0}
+  main{padding:20px 14px 44px}
+  .page{gap:22px}
+  .panel{padding:18px;margin-bottom:18px}
+  .cards{gap:10px;margin:18px 0 22px}
+  .grid2{gap:14px;margin:18px 0 22px}
+  .heading{align-items:flex-start;flex-direction:column}
+  .heading .row{width:100%}
+  .heading .row>*{max-width:100%}
+  .utility-menu-panel{right:-2px}
+}
+@media(max-width:430px){
+  .brand p{max-width:210px;line-height:1.5}
+  .top-actions #accountBtn{max-width:145px;white-space:normal;line-height:1.2}
+  .utility-menu-panel{position:fixed;top:72px;right:12px}
+  .study-hero{margin-bottom:20px}
+  .study-hero-copy{padding:24px 20px}
+  .study-hero h2{font-size:54px}
+  .kpi-row{gap:10px}
+}
