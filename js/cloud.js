@@ -258,9 +258,22 @@ export async function initCloud() {
 }
 
 export async function signInCloud() {
-  if (!sb) { toast('Cloud sync is still loading or you are offline. Try again in a moment.', { type: 'warn' }); return; }
-  const { error } = await sb.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: location.origin + location.pathname } });
-  if (error) toast('Sign-in failed. Please try again.', { type: 'error', ms: 9000 });
+  // The account button can be clicked before the lazy Supabase SDK finishes loading.
+  if (!sb) await initCloud();
+  if (!sb) {
+    toast('Sign-in could not start. Check your connection, then try again.', { type: 'error', ms: 9000 });
+    return;
+  }
+  try {
+    const { error } = await sb.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: new URL('./', location.href).href },
+    });
+    if (error) toast(`Google sign-in failed: ${error.message || 'Please try again.'}`, { type: 'error', ms: 10000 });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Please try again.';
+    toast(`Google sign-in failed: ${message}`, { type: 'error', ms: 10000 });
+  }
 }
 
 export async function signOutCloud() {
