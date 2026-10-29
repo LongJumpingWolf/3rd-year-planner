@@ -1,5 +1,5 @@
-// Daily view: one date, two clearly separated work blocks.
-import { BLOCKS, BLOCK_INFO, dayStats } from '../planner.js';
+// Daily view: today's committed plan plus a separate, optional use of spare capacity.
+import { BLOCKS, BLOCK_INFO, blockOf, dayStats, isCompatible, isSchedulable, recommendedBlock, taskPlannedSec } from '../planner.js';
 import { state } from '../store.js';
 import { addDays, dateISO, esc, fmtDate, fmtDur, fromISO, isValidISO } from '../utils.js';
 import { blockSectionHTML } from './blocks.js';
@@ -17,6 +17,45 @@ export function setDay(iso) {
 
 export function shiftDay(n) {
   setDay(dateISO(addDays(fromISO(currentDayISO()), n)));
+}
+
+function recommendationHTML(iso, day) {
+  const panel = $('#dayRecommendations');
+  if (day.kind === 'trip' || day.kind === 'off') { panel.hidden = true; panel.innerHTML = ''; return; }
+
+  const free = { light: day.blocks.light.free, focus: day.blocks.focus.free };
+  const asleep = new Set(state.planConfig.asleep || []);
+  const candidates = state.tasks
+    .filter((t) => t.scheduledDate && t.scheduledDate > iso && !t.done && !t.generated && isSchedulable(t) && !asleep.has(t.subject))
+    .sort((a, b) => a.scheduledDate.localeCompare(b.scheduledDate) || (Number(a.seq) || 0) - (Number(b.seq) || 0));
+  const suggestions = [];
+  for (const task of candidates) {
+    if (suggestions.length >= 3) break;
+    const seconds = taskPlannedSec(task, state.settings);
+    const hours = seconds / 3600;
+    const preferred = recommendedBlock(task);
+    const options = preferred === 'light' ? ['light', 'focus'] : ['focus'];
+    const block = options.find((b) => isCompatible(task, b) && free[b] + 1e-6 >= hours);
+    if (!block) continue;
+    free[block] -= hours;
+    suggestions.push({ task, block, hours, seconds });
+  }
+
+  if (!suggestions.length) { panel.hidden = true; panel.innerHTML = ''; return; }
+  panel.hidden = false;
+  const freeBefore = { light: day.blocks.light.free, focus: day.blocks.focus.free };
+  panel.innerHTML = `
+    <div class="recommendations-head">
+      <div><p class="eyebrow">OPTIONAL · NOT IN YOUR PLAN</p><h3 id="h-recommendations">Use some spare time?</h3>
+      <p class="small muted">These upcoming tasks fit the remaining capacity. They are suggestions only: today's workload and the future schedule stay unchanged unless you add one.</p></div>
+      <div class="recommendation-capacity"><span class="small muted">Spare today</span><strong>${fmtDur((freeBefore.light + freeBefore.focus) * 3600)}</strong></div>
+    </div>
+    <ul class="recommendation-list">${suggestions.map(({ task, block, seconds }) => `
+      <li class="recommendation-item">
+        <div class="recommendation-main"><span class="recommendation-subject">${esc(task.subject)}</span><strong>${esc(task.title)}</strong>
+          <span class="small muted">${fmtDur(seconds)} · originally ${esc(fmtDate(task.scheduledDate, { weekday: 'short', day: 'numeric', month: 'short' }))} · ${esc(BLOCK_INFO[block].name)}</span></div>
+        <button type="button" class="recommendation-accept" data-action="accept-recommendation" data-id="${esc(task.id)}" data-date="${esc(iso)}" data-block="${esc(block)}">Add to today</button>
+      </li>`).join('')}</ul>`;
 }
 
 export function renderDay() {
@@ -44,7 +83,7 @@ export function renderDay() {
       const x = day.blocks[b];
       return `<div class="kpi kpi-${b} ${x.over > 0.001 ? 'bad' : ''}"><span class="small muted">${esc(BLOCK_INFO[b].name)} — ${esc(BLOCK_INFO[b].where)}</span>
         <strong>${fmtDur(x.planned * 3600)} / ${fmtDur(x.cap * 3600)}</strong>
-        <span class="small muted">${fmtDur(x.done * 3600)} completed</span></div>`;
+        <span class="small muted">${fmtDur(x.done * 3600)} completed · ${fmtDur(x.free * 3600)} free</span></div>`;
     }).join('')}`;
 
   const notes = state.extras[iso] || [];
@@ -54,4 +93,5 @@ export function renderDay() {
   const closed = day.kind === 'trip' || day.kind === 'off';
   $('#dayBlocks').innerHTML = BLOCKS.map((b) => blockSectionHTML(day, b, 'day')).join('');
   $('#dayBlocks').classList.toggle('closed', closed);
+  recommendationHTML(iso, day);
 }
