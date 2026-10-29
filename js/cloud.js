@@ -188,8 +188,9 @@ async function reconcile() {
       if (remote) applyRemote(remote); else await push({ force: true });
     } else if (action === 'conflict') await resolveConflict(row);
     else setStatus('synced', { syncedAt: Date.now() });
-  } catch {
-    setStatus(navigator.onLine ? 'error' : 'offline');
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Could not read the cloud copy. Check the user_state table and its row-level security policies.';
+    setStatus(navigator.onLine ? 'error' : 'offline', { error: message });
     return;
   }
   if (!paused) listen();
