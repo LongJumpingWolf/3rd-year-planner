@@ -1,5 +1,5 @@
 // App shell cache (network first, cache fallback) so the planner opens offline after the first visit.
-const CACHE = 'mbbs-scc-v6';
+const CACHE = 'study-desk-v7';
 const SHELL = ['./', 'index.html', 'manifest.webmanifest', 'favicon.svg', 'css/styles.css',
   'js/app.js', 'js/actions.js', 'js/planner.js', 'js/taskOps.js', 'js/store.js', 'js/utils.js', 'js/data.js',
   'js/exportPlan.js', 'js/cloud.js', 'js/syncLogic.js', 'js/supabase-config.js', 'js/ui/account.js', 'js/ui/viewerLink.js', 'js/ui/tuner.js', 'js/ui/catchup.js', 'js/share.js', 'js/viewerSnapshot.js', 'js/insights.js', 'js/ui/audit.js', 'js/ui/blocks.js', 'js/ui/calendar.js', 'js/ui/dashboard.js',
