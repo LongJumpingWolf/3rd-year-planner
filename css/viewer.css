@@ -119,3 +119,55 @@ button:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
   .week .d { font-size: .72rem; }
   .notify { font-size: 1rem; padding: 12px 12px; }
 }
+
+
+/* Study Desk shared viewer: match the planner's warm editorial identity. */
+:root{
+  --bg:#f4f1e9;--surface:#fffdf8;--ink:#202720;--muted:#74786e;
+  --line:#ded9cd;--accent:#c84d32;--track:#e8e3d8;
+  --good:#426d50;--good-soft:#e7eee5;--warn:#855c22;--warn-soft:#f5ead3;
+  --bad:#a13d31;--bad-soft:#f6e6e1;--neutral-soft:#e9e5d9;
+}
+html{font-size:16px}
+body{font-family:"DM Sans",system-ui,-apple-system,"Segoe UI",sans-serif;line-height:1.6}
+main{max-width:1040px;padding:clamp(20px,4vw,46px) clamp(16px,3vw,36px) 64px;gap:20px}
+h1,h2,h3{font-family:"Newsreader",Georgia,serif;letter-spacing:-.025em}
+h1{font-size:clamp(2rem,4.5vw,3.25rem);font-weight:500;line-height:1.05}
+h2{font-size:1.35rem;font-weight:500;margin-bottom:16px}
+.top{align-items:center;gap:16px;padding:0 0 12px;border-bottom:1px solid var(--line)}
+.top .small{font-size:.82rem;margin-top:8px}
+.top button{border-radius:2px;border:1px solid var(--line);color:var(--ink);font-size:.82rem;font-weight:600;min-height:42px;padding:9px 15px;background:var(--surface)}
+.card{border-radius:2px;padding:clamp(20px,3vw,30px);box-shadow:none;border-color:var(--line)}
+.status{border-radius:2px;padding:20px 24px;gap:16px;font-size:clamp(1.15rem,3vw,1.5rem);line-height:1.3}
+.status .ico{width:2.2rem;height:2.2rem;font-size:1.2rem}
+.big{font-size:clamp(3.8rem,13vw,6.2rem);font-weight:500;letter-spacing:-.06em;line-height:.95;color:var(--accent)}
+.big small{font-size:.34em;font-weight:500}
+.count{font-size:1rem;color:var(--muted);margin:12px 0 18px}
+.bar{height:10px;border-radius:0;background:var(--track)}
+.bar>span{border-radius:0;background:var(--accent)}
+.pair{gap:18px}
+.num{font-size:clamp(2rem,6vw,3rem);font-weight:500;letter-spacing:-.04em;line-height:1.12}
+.label,.sub{font-size:.9rem}
+.week{height:145px;gap:10px}
+.week .stick{background:var(--good);border-radius:0}
+.week .stick.zero{background:var(--track)}
+.subj{gap:18px}
+.subj .head{font-size:.95rem;align-items:baseline}
+.subj .bar{height:7px}
+.days{gap:18px}
+.days h3{font-size:1rem;font-weight:500}
+.days li{font-size:.98rem}
+.card.pending{border-color:#d9b76f;background:#fffaf0}
+.notify{border-radius:2px;background:var(--accent);font-size:.92rem;padding:13px 18px;margin:18px 0 10px}
+button:focus-visible,.notify:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
+.msg{font-size:1.1rem;line-height:1.6}
+@media(max-width:520px){
+  main{padding:18px 14px 40px;gap:14px}
+  .top{align-items:flex-start}
+  .top>div{flex-basis:160px}
+  .card{padding:20px 18px}
+  .status{padding:17px 16px}
+  .pair{gap:14px}
+  .week{height:125px;gap:4px}
+  .week .n{font-size:1rem}
+}
