@@ -336,23 +336,32 @@ document.addEventListener('keydown', (e) => {
 loadState();
 $('#focusDate').value = dateISO(new Date());
 $('#weekDate').value = $('#focusDate').value;
-showPage(landingPage(), { moveFocus: false });
-if (!state.planMeta && !state.tasks.some((t) => t.scheduledDate)) {
-  // First visit: build the default plan so the calendar is not empty.
-  actions.runGenerate({}, { silent: true });
-} else {
-  // Data saved by the single-capacity version: rebuild once so light and focused work are separated.
-  actions.migrateIfNeeded();
-}
-if (!storageAvailable()) {
-  toast('Your browser is blocking local storage, so progress will not be saved. Use Export backup to keep a copy.', { type: 'warn', ms: 0 });
-}
 
-initTuner();
-initAccount();
-initViewerLink();
-initShare();
-initCloud();
+// Finish local restoration/migration before the first page render. Then repaint once cloud
+// reconciliation finishes, because the signed-in copy may replace the local snapshot.
+async function boot() {
+  if (!state.planMeta && !state.tasks.some((t) => t.scheduledDate)) {
+    await actions.runGenerate({}, { silent: true });
+  } else {
+    await actions.migrateIfNeeded();
+  }
+
+  showPage(landingPage(), { moveFocus: false });
+  if (!storageAvailable()) {
+    toast('Your browser is blocking local storage, so progress will not be saved. Use Export backup to keep a copy.', { type: 'warn', ms: 0 });
+  }
+
+  initTuner();
+  initAccount();
+  initViewerLink();
+  initShare();
+
+  // Always repaint after the first auth/session reconciliation. This avoids landing on an
+  // empty/stale view while the saved cloud state is being restored on startup.
+  await initCloud();
+  rerender();
+}
+boot();
 
 // Offline support: cache the app shell (skipped silently where service workers are unavailable).
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
