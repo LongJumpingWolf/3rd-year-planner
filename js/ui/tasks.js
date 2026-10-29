@@ -63,6 +63,7 @@ export function renderTasks() {
       ${t.generated ? '' : `<button type="button" class="small" ${actionAttrs('move', t.id, 'tbl')} aria-label="Move: ${esc(t.title)}">Move</button>
       <button type="button" class="small" ${actionAttrs('edit', t.id, 'tbl')} aria-label="Edit: ${esc(t.title)}">Edit</button>
       ${t.scheduledDate && !t.done ? `<button type="button" class="small" ${actionAttrs('replace', t.id, 'tbl')} aria-label="Replace scheduled task: ${esc(t.title)}">Replace</button>` : ''}
+      ${t.scheduledDate && !t.done ? `<button type="button" class="small" ${actionAttrs('quick-push', t.id, 'tbl')} aria-label="Quick-push forward: ${esc(t.title)}">Quick push →</button>` : ''}
       ${t.status === 'custom_estimate' ? `<button type="button" class="small danger-text" ${actionAttrs('delete-task', t.id, 'tbl')} aria-label="Remove added task: ${esc(t.title)}">Remove</button>` : ''}`}
       ${isSchedulable(t) && !t.done && !t.parentId ? `<button type="button" class="small" ${actionAttrs('split', t.id, 'tbl')} aria-label="Split: ${esc(t.title)}">Split</button>` : ''}
     </div></td></tr>`).join('') || '<tr><td colspan="9"><div class="empty">No matching entries. Try clearing a filter.</div></td></tr>';
