@@ -92,7 +92,8 @@ export async function quickPushTasks(ids, startDate = '') {
   const chosen = state.tasks.filter((t) => ids.includes(t.id) && !t.done && !t.generated && isSchedulable(t))
     .sort((a, b) => String(a.scheduledDate || '9999').localeCompare(String(b.scheduledDate || '9999')) || (Number(a.seq) || 0) - (Number(b.seq) || 0));
   if (!chosen.length) { toast('Select at least one incomplete task to push forward.', { type: 'warn' }); return false; }
-  const earliest = startDate || chosen[0].scheduledDate || document.getElementById('focusDate')?.value || todayISO();
+  const origin = startDate || chosen[0].scheduledDate || document.getElementById('focusDate')?.value || todayISO();
+  const earliest = startDate || (chosen[0].scheduledDate ? new Date(new Date(`${origin}T12:00:00`).getTime() + 86400000).toISOString().slice(0, 10) : origin);
   const totalHours = chosen.reduce((sum, t) => sum + taskPlannedSec(t, state.settings), 0) / 3600;
   const result = await openDialog({
     title: `Quick-push ${plural(chosen.length, 'task')}`,
