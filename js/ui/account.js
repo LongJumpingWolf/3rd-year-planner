@@ -14,6 +14,7 @@ const LABEL = {
 function statusText(s) {
   if (s.code === 'unconfigured') return 'Cloud sync is not set up for this copy of the app. Add a Supabase config (see README, "Cloud sync") to sign in with Google and open your progress on any device.';
   if (s.code === 'signed-out') return 'Sign in with Google to keep your progress in sync across your phone, laptop and tablet. It still works offline.';
+  if (s.code === 'error' && s.error) return `Cloud connection error: ${s.error}`;
   const who = s.user?.email ? `Signed in as ${s.user.email}. ` : '';
   if (s.code === 'synced') return `${who}Synced${s.syncedAt ? ` at ${new Date(s.syncedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}` : ''}.`;
   return `${who}${LABEL[s.code] || ''}`;
@@ -46,7 +47,7 @@ export function initAccount() {
   onStatus((s) => {
     current = s;
     const signedIn = !!s.user;
-    topBtn.textContent = s.code === 'paused' ? 'Resolve sync' : signedIn ? `Signed in · ${s.code === 'synced' ? 'Synced' : s.code === 'syncing' ? 'Syncing' : s.code === 'offline' ? 'Offline' : 'Check sync'}` : 'Sign in with Google';
+    topBtn.textContent = s.code === 'paused' ? 'Resolve sync' : s.code === 'connecting' ? 'Connecting…' : signedIn ? `Signed in · ${s.code === 'synced' ? 'Synced' : s.code === 'syncing' ? 'Syncing' : s.code === 'offline' ? 'Offline' : 'Check sync'}` : 'Sign in with Google';
     topBtn.title = signedIn ? `${s.user.email} (click to sign out)` : 'Sign in to sync your progress across devices';
     setBtn.textContent = s.code === 'paused' ? 'Resolve sync' : signedIn ? 'Sign out' : 'Sign in with Google';
     text.textContent = statusText(s);
