@@ -129,8 +129,12 @@ export function acceptDailyRecommendation(id, iso, block) {
     return false;
   }
   const hours = taskPlannedSec(task, state.settings) / 3600;
-  if (day.blocks[block].free + 1e-6 < hours) {
-    toast('That task no longer fits the available capacity. Your schedule is unchanged.', { type: 'warn' });
+  const unfinishedHours = day.blocks[block].tasks
+    .filter((t) => !t.done)
+    .reduce((sum, t) => sum + taskPlannedSec(t, state.settings) / 3600, 0);
+  const availableHours = Math.max(0, day.blocks[block].cap - unfinishedHours);
+  if (availableHours + 1e-6 < hours) {
+    toast('That task no longer fits the remaining capacity. Your schedule is unchanged.', { type: 'warn' });
     return false;
   }
   const snapshot = JSON.stringify(state);
