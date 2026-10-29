@@ -109,6 +109,7 @@ document.addEventListener('click', (e) => {
       break;
     }
     case 'move': actions.moveTask(id); break;
+    case 'quick-push': actions.quickPushTasks([id]); break;
     case 'edit': actions.editTask(id); break;
     case 'replace': actions.replaceTaskAction(id); break;
     case 'quick-add-task': actions.addTask({ date: id, block: el.dataset.block || '' }); break;
@@ -229,6 +230,10 @@ $('#selectAll').addEventListener('change', (e) => {
 });
 $('#bulkScheduleBtn').addEventListener('click', async () => {
   if (await actions.bulkSchedule([...selection])) selection.clear();
+  renderTasks();
+});
+$('#bulkQuickPushBtn').addEventListener('click', async () => {
+  if (await actions.quickPushTasks([...selection])) selection.clear();
   renderTasks();
 });
 
