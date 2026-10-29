@@ -1,5 +1,5 @@
 // Daily view: today's committed plan plus a separate, optional use of spare capacity.
-import { BLOCKS, BLOCK_INFO, blockOf, dayStats, isCompatible, isSchedulable, recommendedBlock, taskPlannedSec } from '../planner.js';
+import { BLOCKS, BLOCK_INFO, dayStats, isCompatible, isSchedulable, recommendedBlock, taskPlannedSec } from '../planner.js';
 import { state } from '../store.js';
 import { addDays, dateISO, esc, fmtDate, fmtDur, fromISO, isValidISO } from '../utils.js';
 import { blockSectionHTML } from './blocks.js';
@@ -23,7 +23,7 @@ function recommendationHTML(iso, day) {
   const panel = $('#dayRecommendations');
   if (day.kind === 'trip' || day.kind === 'off') { panel.hidden = true; panel.innerHTML = ''; return; }
 
-  const free = { light: day.blocks.light.free, focus: day.blocks.focus.free };
+  // Completed work releases its planned time for optional extras; only unfinished work consumes remaining capacity.\n  const free = Object.fromEntries(BLOCKS.map((b) => [b, Math.max(0, day.blocks[b].cap - day.blocks[b].tasks.filter((t) => !t.done).reduce((sum, t) => sum + taskPlannedSec(t, state.settings) / 3600, 0))]));
   const asleep = new Set(state.planConfig.asleep || []);
   const candidates = state.tasks
     .filter((t) => t.scheduledDate && t.scheduledDate > iso && !t.done && !t.generated && isSchedulable(t) && !asleep.has(t.subject))
@@ -43,7 +43,7 @@ function recommendationHTML(iso, day) {
 
   if (!suggestions.length) { panel.hidden = true; panel.innerHTML = ''; return; }
   panel.hidden = false;
-  const freeBefore = { light: day.blocks.light.free, focus: day.blocks.focus.free };
+  const freeBefore = free;
   panel.innerHTML = `
     <div class="recommendations-head">
       <div><p class="eyebrow">OPTIONAL · NOT IN YOUR PLAN</p><h3 id="h-recommendations">Use some spare time?</h3>
@@ -83,7 +83,7 @@ export function renderDay() {
       const x = day.blocks[b];
       return `<div class="kpi kpi-${b} ${x.over > 0.001 ? 'bad' : ''}"><span class="small muted">${esc(BLOCK_INFO[b].name)} — ${esc(BLOCK_INFO[b].where)}</span>
         <strong>${fmtDur(x.planned * 3600)} / ${fmtDur(x.cap * 3600)}</strong>
-        <span class="small muted">${fmtDur(x.done * 3600)} completed · ${fmtDur(x.free * 3600)} free</span></div>`;
+        <span class="small muted">${fmtDur(x.done * 3600)} completed · ${fmtDur(Math.max(0, x.cap - x.tasks.filter((t) => !t.done).reduce((sum, t) => sum + taskPlannedSec(t, state.settings) / 3600, 0)) * 3600)} available after remaining work</span></div>`;
     }).join('')}`;
 
   const notes = state.extras[iso] || [];
