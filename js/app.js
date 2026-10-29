@@ -42,7 +42,7 @@ function parseHash(h = location.hash) {
 const pageFromHash = () => parseHash().name || 'dashboard';
 // Wide enough for the Daily view's two columns (Light | Focused): open on it by default, since that is the working screen.
 const TWO_COLUMNS = '(min-width: 901px)';
-const landingPage = () => parseHash().name || (window.matchMedia?.(TWO_COLUMNS).matches ? 'day' : 'dashboard');
+const landingPage = () => parseHash().name || 'day';
 
 function showPage(name, { moveFocus = true, arg } = {}) {
   current = PAGES[name] ? name : 'dashboard';
@@ -110,6 +110,7 @@ document.addEventListener('click', (e) => {
     }
     case 'move': actions.moveTask(id); break;
     case 'quick-push': actions.quickPushTasks([id]); break;
+    case 'accept-recommendation': actions.acceptDailyRecommendation(id, el.dataset.date, el.dataset.block); break;
     case 'edit': actions.editTask(id); break;
     case 'replace': actions.replaceTaskAction(id); break;
     case 'quick-add-task': actions.addTask({ date: id, block: el.dataset.block || '' }); break;
