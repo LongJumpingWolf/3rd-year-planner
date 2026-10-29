@@ -87,6 +87,30 @@ export function removeExtra(iso, index) {
   });
 }
 
+/** Capacity-aware quick push for one or many incomplete tasks. */
+export async function quickPushTasks(ids, startDate = '') {
+  const chosen = state.tasks.filter((t) => ids.includes(t.id) && !t.done && !t.generated && isSchedulable(t))
+    .sort((a, b) => String(a.scheduledDate || '9999').localeCompare(String(b.scheduledDate || '9999')) || (Number(a.seq) || 0) - (Number(b.seq) || 0));
+  if (!chosen.length) { toast('Select at least one incomplete task to push forward.', { type: 'warn' }); return false; }
+  const earliest = startDate || chosen[0].scheduledDate || document.getElementById('focusDate')?.value || todayISO();
+  const totalHours = chosen.reduce((sum, t) => sum + taskPlannedSec(t, state.settings), 0) / 3600;
+  const result = await openDialog({
+    title: `Quick-push ${plural(chosen.length, 'task')}`,
+    body: `<p>Move ${chosen.length} selected task${chosen.length === 1 ? '' : 's'} forward in order. Each task goes into the earliest suitable slot with available capacity.</p><p class="hint">Selected workload: ${totalHours.toFixed(1)} h. Existing tasks remain scheduled; if a day is full, pushed tasks continue to later days.</p><div class="field"><label for="push-date">Start looking from</label><input id="push-date" name="date" type="date" value="${esc(earliest)}" required></div>`,
+    submitLabel: 'Push forward',
+    onSubmit: ({ date }) => isValidISO(date) ? { date } : 'Choose a valid start date.',
+  });
+  if (!result || result === true) return false;
+  const snapshot = JSON.stringify(state);
+  chosen.forEach((t) => unscheduleTask(state, t.id, 'Quick-pushed forward'));
+  let placed = 0; let last = result.date; const failed = [];
+  for (const t of chosen) { const r = autoPlaceTask(state, t.id, { from: last }); if (r.ok) { placed++; last = r.iso; } else failed.push(t); }
+  if (failed.length) failed.forEach((t) => unscheduleTask(state, t.id, 'No available slot after quick-push'));
+  commit();
+  toast(`Quick-pushed ${placed} of ${chosen.length} tasks forward${failed.length ? `; ${failed.length} left in backlog because no suitable capacity was found` : ''}.`, { type: failed.length ? 'warn' : 'ok', ms: 9000, action: { label: 'Undo', run: () => { replaceState(JSON.parse(snapshot)); commit(); toast('Quick-push undone.'); } } });
+  return placed > 0;
+}
+
 // ---- move / edit / split / reclassify ----------------------------------------------------------
 
 export async function moveTask(id) {
