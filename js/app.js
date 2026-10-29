@@ -144,17 +144,12 @@ document.addEventListener('change', (e) => {
 
 // ---- theme ---------------------------------------------------------------------------------------
 
-const THEMES = ['auto', 'light', 'dark'];
-function applyTheme(t) {
-  if (t === 'auto') delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme = t;
-  $('#themeBtn').textContent = `Theme: ${t[0].toUpperCase()}${t.slice(1)}`;
-  try { if (t === 'auto') localStorage.removeItem('mbbsTheme'); else localStorage.setItem('mbbsTheme', t); } catch { /* ignore */ }
+// Study Desk is intentionally light-mode only for a consistent, readable interface.
+function applyTheme() {
+  document.documentElement.dataset.theme = 'light';
+  try { localStorage.setItem('mbbsTheme', 'light'); } catch { /* ignore */ }
 }
-$('#themeBtn').addEventListener('click', () => {
-  const cur = document.documentElement.dataset.theme || 'auto';
-  applyTheme(THEMES[(THEMES.indexOf(cur) + 1) % THEMES.length]);
-});
-applyTheme(document.documentElement.dataset.theme || 'auto');
+applyTheme();
 initTimer();
 
 // ---- header ------------------------------------------------------------------------------------
