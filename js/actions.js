@@ -112,6 +112,38 @@ export async function quickPushTasks(ids, startDate = '') {
   return placed > 0;
 }
 
+/** Accept one optional Daily-view recommendation, moving it from its future date into today's free capacity. */
+export function acceptDailyRecommendation(id, iso, block) {
+  const task = findTask(id);
+  if (!task || task.done || task.generated || !isSchedulable(task) || !task.scheduledDate || task.scheduledDate <= iso) {
+    toast('That suggestion is no longer available. The scheduled plan has not been changed.', { type: 'warn' });
+    return false;
+  }
+  if (!isValidISO(iso) || !['light', 'focus'].includes(block) || !isCompatible(task, block)) {
+    toast('This task cannot be placed in that work block.', { type: 'warn' });
+    return false;
+  }
+  const day = dayStats(state.tasks, iso, state.planConfig, state.settings);
+  if (day.kind === 'trip' || day.kind === 'off') {
+    toast('This day is marked unavailable. No changes were made.', { type: 'warn' });
+    return false;
+  }
+  const hours = taskPlannedSec(task, state.settings) / 3600;
+  if (day.blocks[block].free + 1e-6 < hours) {
+    toast('That task no longer fits the available capacity. Your schedule is unchanged.', { type: 'warn' });
+    return false;
+  }
+  const snapshot = JSON.stringify(state);
+  const result = assignTask(state, id, iso, block);
+  if (!result.ok) { toast(result.error || 'Could not add this task.', { type: 'warn' }); return false; }
+  commit();
+  toast(`Added “${task.title}” to today. Its original future slot is now free.`, {
+    type: 'ok', ms: 9000,
+    action: { label: 'Undo', run: () => { replaceState(JSON.parse(snapshot)); commit(); toast('Recommendation acceptance undone.'); } },
+  });
+  return true;
+}
+
 // ---- move / edit / split / reclassify ----------------------------------------------------------
 
 export async function moveTask(id) {
