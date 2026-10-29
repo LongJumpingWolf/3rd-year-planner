@@ -52,10 +52,13 @@ function showPage(name, { moveFocus = true, arg } = {}) {
     else if (!$('#dayDate').value) setDay($('#focusDate').value);
   }
   $$('.page').forEach((p) => { p.hidden = p.id !== `page-${current}`; });
-  $$('#nav a').forEach((a) => {
+  $('#nav a').forEach((a) => {
     if (a.dataset.page === current) a.setAttribute('aria-current', 'page');
     else a.removeAttribute('aria-current');
   });
+  const moreLink = $(`.nav-more-links a[data-page="${current}"]`);
+  const moreMenu = $('.nav-more-menu');
+  if (moreMenu) moreMenu.open = !!moreLink;
   document.title = `${PAGES[current].title} · MBBS Study Planner`;
   PAGES[current].render();
   renderCatchup();
