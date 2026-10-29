@@ -29,6 +29,7 @@ export const cloudConfigured = () => !!(supabaseConfig?.url && supabaseConfig?.a
 
 let meta = loadMeta(); // { uid, rev, dirty } - what this device last agreed on with the cloud
 let sb = null;         // Supabase client, created lazily
+let initPromise = null; // prevent concurrent SDK loads when the account button is clicked during startup
 let user = null;       // { id, email, name }
 let channel = null;
 let pushTimer = null;
@@ -225,54 +226,92 @@ function setUser(session) {
 }
 
 export async function initCloud() {
-  if (!cloudConfigured() || sb) return;
-  subscribe(onLocalCommit);
-  setStatus('connecting');
-  try {
-    await loadClient();
-  } catch {
-    setStatus('offline'); // CDN unreachable (offline); the app keeps working locally
-    window.addEventListener('online', () => initCloud(), { once: true });
+  if (!cloudConfigured()) {
+    setStatus('unconfigured');
     return;
   }
-  sb.auth.onAuthStateChange((event, session) => {
-    const prev = user?.id;
-    const u = setUser(session);
-    if (!u) {
-      if (channel) { sb.removeChannel(channel); channel = null; }
-      setStatus('signed-out', { user: null });
-    } else if (u.id !== prev) { // token refreshes re-fire this event for the same user; only a new user needs a reconcile
-      setStatus('syncing', { user: { name: u.name, email: u.email } });
-      reconcile();
+  if (sb) return;
+  if (initPromise) return initPromise;
+
+  initPromise = (async () => {
+    subscribe(onLocalCommit);
+    setStatus('connecting');
+    try {
+      await loadClient();
+    } catch (error) {
+      sb = null;
+      const message = error instanceof Error ? error.message : '';
+      setStatus(navigator.onLine ? 'error' : 'offline', { error: message });
+      window.addEventListener('online', () => { initPromise = null; initCloud(); }, { once: true });
+      return;
     }
-  });
-  window.addEventListener('online', () => {
-    if (!user || paused) return;
-    if (meta.dirty) push(); else reconcile();
-  });
-  // Realtime can miss events while a phone is asleep, so look again whenever the tab comes back.
-  document.addEventListener('visibilitychange', async () => {
-    if (document.visibilityState !== 'visible' || !user || paused || pushing || asking) return;
-    try { handleRemote(await fetchRemote()); } catch { /* offline: try again next time */ }
-  });
+
+    sb.auth.onAuthStateChange((event, session) => {
+      // Read the initial session below with getSession(); handling INITIAL_SESSION here as
+      // well can start two simultaneous reconciliations and race cloud state restoration.
+      if (event === 'INITIAL_SESSION') return;
+      const prev = user?.id;
+      const u = setUser(session);
+      if (!u) {
+        if (channel) { sb.removeChannel(channel); channel = null; }
+        setStatus('signed-out', { user: null });
+      } else if (u.id !== prev) {
+        setStatus('syncing', { user: { name: u.name, email: u.email } });
+        reconcile();
+      }
+    });
+
+    window.addEventListener('online', () => {
+      if (!user || paused) return;
+      if (meta.dirty) push(); else reconcile();
+    });
+    document.addEventListener('visibilitychange', async () => {
+      if (document.visibilityState !== 'visible' || !user || paused || pushing || asking) return;
+      try { handleRemote(await fetchRemote()); } catch { /* offline: try again next time */ }
+    });
+
+    try {
+      const { data, error } = await sb.auth.getSession();
+      if (error) throw error;
+      const previous = user?.id;
+      const u = setUser(data.session);
+      if (u && u.id !== previous) {
+        setStatus('syncing', { user: { name: u.name, email: u.email } });
+        await reconcile();
+      } else if (!u) {
+        setStatus('signed-out', { user: null });
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Could not restore the saved session.';
+      setStatus('error', { error: message });
+    }
+  })();
+
+  try {
+    await initPromise;
+  } finally {
+    // Keep the promise while the SDK is ready; clear it only if setup failed before sb existed.
+    if (!sb) initPromise = null;
+  }
 }
 
 export async function signInCloud() {
-  // The account button can be clicked before the lazy Supabase SDK finishes loading.
-  if (!sb) await initCloud();
-  if (!sb) {
-    toast('Sign-in could not start. Check your connection, then try again.', { type: 'error', ms: 9000 });
-    return;
-  }
   try {
+    if (!sb) await initCloud();
+    if (!sb) {
+      const message = status.error || 'The Supabase client could not be initialized.';
+      toast(`Sign-in could not start: ${message}`, { type: 'error', ms: 12000 });
+      return;
+    }
+    const redirectTo = new URL('/', location.origin).href;
     const { error } = await sb.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: new URL('./', location.href).href },
+      options: { redirectTo },
     });
-    if (error) toast(`Google sign-in failed: ${error.message || 'Please try again.'}`, { type: 'error', ms: 10000 });
+    if (error) toast(`Google sign-in failed: ${error.message || 'Please try again.'}`, { type: 'error', ms: 12000 });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Please try again.';
-    toast(`Google sign-in failed: ${message}`, { type: 'error', ms: 10000 });
+    toast(`Google sign-in failed: ${message}`, { type: 'error', ms: 12000 });
   }
 }
 
