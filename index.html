@@ -20,11 +20,20 @@
     <h1>Study Desk</h1>
     <p>THE MBBS FIELD GUIDE <span class="brand-separator">/</span> Plan less. Show up. Repeat.</p>
   </div>
-  <div class="top-actions" role="group" aria-label="Backup and help">
+  <div class="top-actions" role="group" aria-label="Account and app tools">
     <button type="button" id="accountBtn" aria-haspopup="dialog">Sign in with Google</button>
-    <button type="button" id="exportBtn">Export backup</button>
-    <button type="button" id="importBtn">Import backup</button>
-    <button type="button" id="helpBtn" aria-haspopup="dialog" title="Keyboard shortcuts (?)">Shortcuts <kbd>?</kbd></button>
+    <details class="utility-menu" id="utilityMenu">
+      <summary aria-label="Open settings and tools" title="Settings and tools"><span aria-hidden="true">⚙</span><span class="utility-menu-label">Tools</span></summary>
+      <div class="utility-menu-panel">
+        <p class="utility-menu-title">Your data</p>
+        <button type="button" id="exportBtn">Export backup</button>
+        <button type="button" id="importBtn">Import backup</button>
+        <p class="utility-menu-note">Keep a copy of your progress or restore a previous backup.</p>
+        <div class="utility-menu-divider"></div>
+        <button type="button" id="helpBtn" aria-haspopup="dialog" title="Keyboard shortcuts (?)">Keyboard shortcuts <kbd>?</kbd></button>
+        <a href="#settings" class="utility-settings-link">Study settings <span aria-hidden="true">↗</span></a>
+      </div>
+    </details>
     <input id="importFile" type="file" accept="application/json,.json" hidden aria-label="Backup file to import">
   </div>
 </header>
