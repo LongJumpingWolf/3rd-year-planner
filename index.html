@@ -53,12 +53,23 @@
 
     <!-- DASHBOARD -->
     <section class="page" id="page-dashboard" aria-labelledby="h-dashboard" hidden>
-      <div class="heading">
-        <div><h2 id="h-dashboard" tabindex="-1">Dashboard</h2><p class="sub">A practical agenda for the day. Adjust it as real life happens.</p></div>
-        <div class="row">
-          <button type="button" class="primary" id="dashboardAddTask">+ Add task</button>
-          <button type="button" id="shareBtn" aria-haspopup="dialog" hidden>Share progress</button>
-          <div class="field inline"><label for="focusDate">View date</label><input type="date" id="focusDate"></div>
+      <div class="study-hero">
+        <div class="study-hero-copy">
+          <p class="eyebrow"><span class="eyebrow-mark"></span> YOUR THIRD YEAR, IN PROGRESS</p>
+          <h2 id="h-dashboard" tabindex="-1">Make today<br><em>count.</em></h2>
+          <p class="study-hero-note">A plan you can actually live with. Start with the next session, then adjust as the day unfolds.</p>
+          <div class="study-hero-actions">
+            <a class="btn primary" href="#day" id="heroOpenDay">Go to today <span aria-hidden="true">↗</span></a>
+            <button type="button" id="dashboardAddTask">+ Add a task</button>
+            <button type="button" id="shareBtn" aria-haspopup="dialog" hidden>Share progress</button>
+          </div>
+        </div>
+        <div class="study-hero-aside">
+          <span class="hero-aside-label">PLANNING FOR</span>
+          <label for="focusDate" class="hero-date-label">Choose a day</label>
+          <input type="date" id="focusDate">
+          <p>Keep the plan useful, not perfect. Your saved timetable stays yours to change.</p>
+          <span class="hero-index">FIELD NOTE <strong>01 / 07</strong></span>
         </div>
       </div>
       <details class="planning-note"><summary>About this plan</summary><p>The schedule uses the lecture titles in your library, flags estimated durations and protects your saved trip dates. Finish targets and capacity assumptions are in the weekly calendar.</p></details>
