@@ -3,10 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<meta name="color-scheme" content="light dark">
+<meta name="color-scheme" content="light">
 <meta name="description" content="A practical MBBS study planner for lectures, revision, task scheduling and catch-up.">
 <title>Study Desk — MBBS Planner</title>
-<meta name="theme-color" content="#252b25">
+<meta name="theme-color" content="#ffffff">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <script>try{document.documentElement.dataset.theme="light";localStorage.setItem("mbbsTheme","light");}catch(e){document.documentElement.dataset.theme="light";}</script>
@@ -17,8 +17,8 @@
 
 <header class="topbar">
   <div class="brand">
-    <h1>MBBS Study Planner</h1>
-    <p>A quieter, clearer way to keep your clinical years on track.</p>
+    <h1>Study Desk</h1>
+    <p>Your next useful study session, planned realistically.</p>
   </div>
   <div class="top-actions" role="group" aria-label="Backup and help">
     <button type="button" id="accountBtn" aria-haspopup="dialog">Sign in with Google</button>
@@ -33,13 +33,15 @@
 <div class="layout">
   <nav class="sidebar" aria-label="Main">
     <ul class="nav" id="nav">
-      <li><a href="#dashboard" data-page="dashboard"><span>Overview</span><small>Progress and priorities</small></a></li>
-      <li><a href="#day" data-page="day"><span>Today</span><small>Your study agenda</small></a></li>
-      <li><a href="#calendar" data-page="calendar"><span>Week</span><small>Capacity and schedule</small></a></li>
-      <li><a href="#tasks" data-page="tasks"><span>Library</span><small>Lectures and custom tasks</small></a></li>
-      <li><a href="#simulator" data-page="simulator"><span>Catch-up</span><small>Plan around disruptions</small></a></li>
-      <li><a href="#data" data-page="data"><span>Data quality</span><small>Verified and estimated</small></a></li>
-      <li><a href="#settings" data-page="settings"><span>Preferences</span><small>Study-time assumptions</small></a></li>
+      <li class="nav-primary"><a href="#day" data-page="day"><span>Today</span><small>Your next session</small></a></li>
+      <li class="nav-primary"><a href="#calendar" data-page="calendar"><span>Week</span><small>Capacity and schedule</small></a></li>
+      <li class="nav-primary"><a href="#tasks" data-page="tasks"><span>Library</span><small>Lectures and tasks</small></a></li>
+      <li class="nav-primary"><a href="#dashboard" data-page="dashboard"><span>Progress</span><small>Overview and momentum</small></a></li>
+      <li class="nav-more"><details class="nav-more-menu"><summary aria-label="More sections">More</summary><div class="nav-more-links">
+        <a href="#simulator" data-page="simulator"><span>Catch-up</span><small>Recover from disruptions</small></a>
+        <a href="#data" data-page="data"><span>Data quality</span><small>Estimated and verified timings</small></a>
+        <a href="#settings" data-page="settings"><span>Preferences</span><small>Study-time assumptions</small></a>
+      </div></details></li>
     </ul>
   </nav>
 
@@ -138,9 +140,11 @@
       </div>
       <p class="notice" id="dayNotice" hidden></p>
       <div class="kpi-row" id="daySummary" aria-live="polite"></div>
-      <section class="panel" aria-labelledby="h-extras" id="dayExtras">
-        <h3 id="h-extras">Also done today <span class="muted small">(shown on your viewer link)</span></h3>
-        <p class="small muted">Add anything that is not a lecture, such as "40 MCQs", "revised pharmacology notes" or "hospital posting". Your viewer sees these as short lines under the day.</p>
+      <div class="blocks-grid" id="dayBlocks"></div>
+      <section class="panel recommendations-panel" id="dayRecommendations" aria-labelledby="h-recommendations" hidden></section>
+      <details class="panel day-notes" aria-labelledby="h-extras" id="dayExtras">
+        <summary><strong id="h-extras">Also done today</strong> <span class="muted small">— optional notes for your progress viewer</span></summary>
+        <p class="small muted">Record work outside the timetable, such as MCQs, note revision or hospital posting. These notes do not change your scheduled workload.</p>
         <ul class="extras" id="extraList"></ul>
         <form class="row" id="extraForm" novalidate>
           <label class="sr-only" for="extraText">What else did you do on this day?</label>
@@ -148,8 +152,7 @@
           <button type="submit">Add note</button>
         </form>
         <p class="error-text" id="extraErr" role="alert" hidden></p>
-      </section>
-      <div class="blocks-grid" id="dayBlocks"></div>
+      </details>
     </section>
 
     <!-- CALENDAR -->
